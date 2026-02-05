@@ -1,0 +1,7 @@
+node_modules
+.env 
+.env_local
+.env_development.env_local
+.env.test.local 
+.env.production.local
+miniprogram_npm

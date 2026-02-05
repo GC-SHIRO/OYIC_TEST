@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生成预览</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 顶部导航栏 */
+        .navbar {
+            background: white;
+            padding: 44px 16px 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .nav-back {
+            position: absolute;
+            left: 16px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .navbar-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #000;
+        }
+        
+        /* 内容区域 */
+        .content-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 16px 100px;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        .content-container::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* 角色卡片预览 */
+        .character-preview {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .preview-header {
+            background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+            padding: 32px 24px;
+            color: white;
+            text-align: center;
+        }
+        
+        .character-name {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .character-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .preview-body {
+            padding: 24px;
+        }
+        
+        .info-section {
+            margin-bottom: 24px;
+        }
+        
+        .info-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #999;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .section-content {
+            font-size: 15px;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .tag {
+            padding: 6px 12px;
+            background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+            color: white;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        /* 模板选择器 */
+        .template-selector {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        
+        .template-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+        }
+        
+        .template-options {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+        }
+        
+        .template-option {
+            flex-shrink: 0;
+            padding: 8px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 14px;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .template-option.active {
+            border-color: #334155;
+            background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+            color: white;
+        }
+        
+        /* 底部操作栏 */
+        .action-bar {
+            position: fixed;
+            bottom: 16px;
+            left: 16px;
+            right: 16px;
+            background: white;
+            padding: 16px;
+            border-radius: 24px;
+            display: flex;
+            gap: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        }
+        
+        .btn {
+            flex: 1;
+            height: 48px;
+            border-radius: 24px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+        
+        .btn-secondary:active {
+            background: #e0e0e0;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);
+        }
+        
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <div class="navbar">
+        <div class="nav-back">←</div>
+        <div class="navbar-title">预览角色卡</div>
+    </div>
+    
+    <!-- 内容区域 -->
+    <div class="content-container">
+        <!-- 模板选择 -->
+        <div class="template-selector">
+            <div class="template-title">选择模板</div>
+            <div class="template-options">
+                <div class="template-option active">标准模板</div>
+                <div class="template-option">详细模板</div>
+                <div class="template-option">简约模板</div>
+            </div>
+        </div>
+        
+        <!-- 角色卡片预览 -->
+        <div class="character-preview">
+            <div class="preview-header">
+                <div class="character-name">樱花剑姬</div>
+                <div class="character-subtitle">Sakura Sword Maiden</div>
+            </div>
+            
+            <div class="preview-body">
+                <!-- 基本信息 -->
+                <div class="info-section">
+                    <div class="section-title">基本信息</div>
+                    <div class="section-content">
+                        <strong>年龄：</strong> 17岁<br>
+                        <strong>性别：</strong> 女<br>
+                        <strong>身高：</strong> 162cm<br>
+                        <strong>职业：</strong> 剑术师
+                    </div>
+                </div>
+                
+                <!-- 外貌特征 -->
+                <div class="info-section">
+                    <div class="section-title">外貌特征</div>
+                    <div class="section-content">
+                        粉色长发及腰，浅紫色的温柔眼眸。身穿白色和服，衣袖和裙摆绣有精致的樱花图案。腰间配备樱花形状护手的武士刀，整体气质优雅而坚定。
+                    </div>
+                </div>
+                
+                <!-- 性格特点 -->
+                <div class="info-section">
+                    <div class="section-title">性格特点</div>
+                    <div class="section-content">
+                        温柔、善良、内心坚强。平时待人温和有礼，战斗时展现出惊人的意志力。珍惜每一个生命，但在保护重要之人时绝不退缩。
+                    </div>
+                </div>
+                
+                <!-- 背景故事 -->
+                <div class="info-section">
+                    <div class="section-title">背景故事</div>
+                    <div class="section-content">
+                        出生于樱花盛开的古都守护者家族，自幼跟随父亲学习家传剑术。在一次妖魔袭击事件中展现出非凡的天赋，继承了家族的樱花剑，从此踏上守护古都和平的道路。
+                    </div>
+                </div>
+                
+                <!-- 特殊能力 -->
+                <div class="info-section">
+                    <div class="section-title">特殊能力</div>
+                    <div class="tags-container">
+                        <div class="tag">樱花剑术</div>
+                        <div class="tag">灵力感知</div>
+                        <div class="tag">结界术</div>
+                        <div class="tag">瞬步</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 底部操作栏 -->
+    <div class="action-bar">
+        <button class="btn btn-secondary">继续创作</button>
+        <button class="btn btn-primary">完成创建</button>
+    </div>
+</body>
+</html>
