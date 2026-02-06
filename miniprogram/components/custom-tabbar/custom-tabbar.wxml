@@ -1,0 +1,28 @@
+<!-- 自定义 TabBar 组件 -->
+<view class="custom-tabbar">
+  <view 
+    class="tab-item {{activeTab === 'home' ? 'active' : ''}}"
+    bindtap="onTabTap"
+    data-tab="home"
+  >
+    <t-icon 
+      name="home" 
+      size="40rpx" 
+      color="{{activeTab === 'home' ? '#0052d9' : '#999'}}" 
+    />
+    <text class="tab-text">首页</text>
+  </view>
+  
+  <view 
+    class="tab-item {{activeTab === 'profile' ? 'active' : ''}}"
+    bindtap="onTabTap"
+    data-tab="profile"
+  >
+    <t-icon 
+      name="user" 
+      size="40rpx" 
+      color="{{activeTab === 'profile' ? '#0052d9' : '#999'}}" 
+    />
+    <text class="tab-text">我的</text>
+  </view>
+</view>

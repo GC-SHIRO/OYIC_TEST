@@ -1,4 +1,19 @@
 /**app.wxss**/
+
+/* 全局样式重置 */
+page {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f5f5f5;
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.5;
+}
+
+view, text, image, scroll-view, navigator, input, textarea, button {
+  box-sizing: border-box;
+}
+
+/* 通用容器 */
 .container {
   height: 100%;
   display: flex;
@@ -7,4 +22,23 @@
   justify-content: space-between;
   padding: 200rpx 0;
   box-sizing: border-box;
-} 
+}
+
+/* 主题色变量 */
+.theme-primary {
+  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+}
+
+/* 安全区域适配 */
+.safe-area-bottom {
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 隐藏滚动条 */
+::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+  color: transparent;
+}

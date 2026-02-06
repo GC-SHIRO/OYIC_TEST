@@ -1,0 +1,96 @@
+<!-- 创建角色 - AI对话页面 -->
+<view class="page-container">
+  <!-- 顶部导航 -->
+  <view class="navbar">
+    <view class="nav-back" bindtap="onBack">
+      <t-icon name="chevron-left" size="48rpx" color="#666" />
+    </view>
+    <text class="navbar-title">创建角色</text>
+    <view class="nav-confirm" bindtap="onConfirm">
+      <t-icon name="check" size="40rpx" color="#fff" />
+    </view>
+  </view>
+  
+  <!-- 聊天消息区域 -->
+  <scroll-view 
+    class="chat-container" 
+    scroll-y 
+    enhanced 
+    show-scrollbar="{{false}}"
+    scroll-into-view="{{scrollToMessage}}"
+    scroll-with-animation
+  >
+    <view class="message-list">
+      <!-- 消息列表 -->
+      <view 
+        wx:for="{{messages}}" 
+        wx:key="id" 
+        id="msg-{{item.id}}"
+        class="message {{item.role === 'ai' ? 'message-ai' : 'message-user'}}"
+      >
+        <view class="message-avatar">
+          <text>{{item.role === 'ai' ? 'AI' : '我'}}</text>
+        </view>
+        <view class="message-content">
+          <view class="message-bubble">
+            <text>{{item.content}}</text>
+          </view>
+          <!-- 图片消息 -->
+          <view wx:if="{{item.images && item.images.length > 0}}" class="message-images">
+            <t-image 
+              wx:for="{{item.images}}" 
+              wx:for-item="img" 
+              wx:key="*this"
+              src="{{img}}" 
+              class="message-image"
+              mode="aspectFill"
+              bindtap="onPreviewImage"
+              data-url="{{img}}"
+            />
+          </view>
+        </view>
+      </view>
+      
+      <!-- AI 正在输入 -->
+      <view wx:if="{{isTyping}}" class="message message-ai">
+        <view class="message-avatar">
+          <text>AI</text>
+        </view>
+        <view class="message-content">
+          <view class="message-bubble typing-bubble">
+            <t-loading theme="dots" size="40rpx" />
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 底部占位，防止输入栏遮挡 -->
+    <view class="bottom-placeholder"></view>
+  </scroll-view>
+  
+  <!-- 底部输入栏 -->
+  <view class="input-container">
+    <!-- 上传按钮 -->
+    <view class="action-btn" bindtap="onChooseImage">
+      <t-icon name="add" size="40rpx" color="#666" />
+    </view>
+    
+    <!-- 输入框 -->
+    <view class="input-wrapper">
+      <input 
+        class="chat-input" 
+        placeholder="输入你的想法..." 
+        value="{{inputValue}}"
+        bindinput="onInput"
+        bindconfirm="onSend"
+        confirm-type="send"
+        adjust-position="{{false}}"
+      />
+    </view>
+    
+    <!-- 发送按钮 -->
+    <view class="send-btn" bindtap="onSend">
+      <t-icon name="arrow-up" size="36rpx" color="#fff" />
+    </view>
+  </view>
+</view>

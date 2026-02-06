@@ -1,0 +1,211 @@
+/* 预览角色卡页面样式 */
+.page-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶部导航栏 */
+.navbar {
+  background: white;
+  padding: 88rpx 32rpx 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-back {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navbar-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #000;
+}
+
+.nav-placeholder {
+  width: 64rpx;
+}
+
+/* 内容区域 */
+.content-container {
+  flex: 1;
+  padding: 40rpx 32rpx 0;
+  box-sizing: border-box;
+}
+
+.bottom-placeholder {
+  height: 200rpx;
+}
+
+/* 加载中 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 200rpx 0;
+}
+
+.loading-text {
+  margin-top: 32rpx;
+  font-size: 28rpx;
+  color: #999;
+}
+
+/* 模板选择器 */
+.template-selector {
+  background: white;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  margin-bottom: 40rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+}
+
+.template-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 24rpx;
+}
+
+.template-options {
+  display: flex;
+  white-space: nowrap;
+}
+
+.template-option {
+  display: inline-block;
+  padding: 16rpx 32rpx;
+  border: 4rpx solid #e0e0e0;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+  color: #666;
+  margin-right: 24rpx;
+  transition: all 0.2s;
+}
+
+.template-option.active {
+  border-color: #334155;
+  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  color: white;
+}
+
+/* 角色卡片预览 */
+.character-preview {
+  background: white;
+  border-radius: 40rpx;
+  overflow: hidden;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.1);
+  margin-bottom: 40rpx;
+}
+
+.preview-header {
+  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  padding: 64rpx 48rpx;
+  color: white;
+  text-align: center;
+}
+
+.character-name {
+  font-size: 48rpx;
+  font-weight: 700;
+  margin-bottom: 16rpx;
+}
+
+.character-subtitle {
+  font-size: 28rpx;
+  opacity: 0.9;
+}
+
+.preview-body {
+  padding: 48rpx;
+}
+
+.info-section {
+  margin-bottom: 16rpx;
+}
+
+.section-title {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #999;
+  margin-bottom: 16rpx;
+  text-transform: uppercase;
+  letter-spacing: 2rpx;
+}
+
+.section-content {
+  font-size: 30rpx;
+  color: #333;
+  line-height: 1.6;
+}
+
+.info-item {
+  margin-bottom: 8rpx;
+}
+
+.info-label {
+  font-weight: 600;
+}
+
+.info-value {
+  color: #666;
+}
+
+.section-text {
+  display: block;
+  white-space: pre-wrap;
+}
+
+/* 能力标签 */
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.ability-tag {
+  margin-right: 0 !important;
+}
+
+/* 底部操作栏 */
+.action-bar {
+  position: fixed;
+  bottom: 32rpx;
+  left: 32rpx;
+  right: 32rpx;
+  background: white;
+  padding: 32rpx;
+  border-radius: 48rpx;
+  display: flex;
+  gap: 24rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
+}
+
+.btn-secondary {
+  flex: 1;
+}
+
+.btn-primary {
+  flex: 1;
+}
+
+/* TDesign组件样式覆盖 */
+.action-bar .t-button {
+  border-radius: 48rpx !important;
+  height: 96rpx !important;
+}
+
+.action-bar .t-button--primary {
+  background: linear-gradient(135deg, #0f172a 0%, #334155 100%) !important;
+  border: none !important;
+}

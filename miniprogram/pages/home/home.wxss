@@ -1,0 +1,137 @@
+/* 首页 - 角色卡中心样式 */
+.page-container {
+  height: 100vh;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box; 
+}
+
+/* 顶部导航栏 */
+.navbar {
+  background: white;
+  padding: 95rpx 38rpx 24rpx;
+  position: relative;
+  z-index: 10;
+}
+
+.navbar-title {
+  font-size: 56rpx;
+  font-weight: 600;
+  color: #000;
+}
+
+/* 角色卡片滚动容器 */
+.cards-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.cards-scroll {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center; /* 垂直居中 */
+  /* 增加上下padding避免阴影截断，下方padding更大让卡片视觉上偏上 */
+  padding: 40rpx 0 170rpx; 
+  box-sizing: border-box;
+}
+
+/* 角色卡片 */
+.character-card {
+  width: 520rpx;
+  height: 960rpx;
+  border-radius: 64rpx;
+  overflow: hidden;
+  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.15);
+  position: relative;
+  flex-shrink: 0;
+  /* 使用 margin 控制间距，紧贴屏幕边缘 */
+  margin-left: 32rpx; 
+}
+
+.character-card:last-child {
+  margin-right: 32rpx; /* 最后一个卡片右侧留出间距 */
+}
+
+.character-card:active {
+  transform: scale(0.98);
+}
+
+/* 已完成的卡片 */
+.card-completed {
+  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+}
+
+.card-image {
+  width: 100%;
+  height: 560rpx;
+}
+
+.card-info {
+  padding: 32rpx;
+  color: white;
+}
+
+.card-name {
+  font-size: 40rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+
+.card-desc {
+  font-size: 26rpx;
+  opacity: 0.9;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+}
+
+.card-tag {
+  margin-top: 16rpx;
+}
+
+/* 未完成的卡片 */
+.card-incomplete {
+  background: linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%);
+}
+
+.card-blur-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 64rpx;
+}
+
+.incomplete-label {
+  color: #d32f2f;
+  font-size: 48rpx;
+  font-weight: 700;
+  text-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.1);
+}
+
+/* 新建卡片 */
+.card-new {
+  background: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.new-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

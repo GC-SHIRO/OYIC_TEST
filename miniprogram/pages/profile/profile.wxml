@@ -1,0 +1,111 @@
+<!-- 我的 - 用户中心页面 -->
+<view class="page-container">
+  <!-- 用户信息头部 -->
+  <view class="user-header">
+    <view class="user-profile">
+      <t-avatar 
+        class="user-avatar" 
+        image="{{userInfo.avatar}}" 
+        size="144rpx"
+      />
+      <view class="user-info">
+        <view class="user-name">{{userInfo.nickname}}</view>
+        <view class="user-id">ID: {{userInfo.userId}}</view>
+      </view>
+      <view class="edit-btn" bindtap="onEditProfile">
+        <t-icon name="edit" size="32rpx" color="#fff" />
+      </view>
+    </view>
+  </view>
+  
+  <!-- 内容区域 -->
+  <scroll-view class="content-container" scroll-y enhanced show-scrollbar="{{false}}">
+    <!-- 我的作品 -->
+    <view class="section">
+      <view class="section-header">
+        <view class="section-title">🎨 我的作品</view>
+        <view class="section-more" bindtap="onViewAllWorks">查看全部 →</view>
+      </view>
+      <scroll-view class="works-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+        <view 
+          wx:for="{{works}}" 
+          wx:key="id"
+          class="work-card"
+          bindtap="onWorkTap"
+          data-id="{{item.id}}"
+        >
+          <t-image 
+            src="{{item.image}}" 
+            class="work-image"
+            mode="aspectFill"
+          />
+          <view class="work-info">
+            <view class="work-name">{{item.name}}</view>
+            <view class="work-date">{{item.date}}</view>
+          </view>
+        </view>
+        
+        <!-- 空状态 -->
+        <view wx:if="{{works.length === 0}}" class="empty-works">
+          <t-icon name="folder-open" size="80rpx" color="#ccc" />
+          <text class="empty-text">暂无作品</text>
+        </view>
+      </scroll-view>
+    </view>
+    
+    <!-- 菜单列表 -->
+    <view class="menu-section">
+      <!-- 使用指南 -->
+      <view class="menu-item" bindtap="onMenuTap" data-type="guide">
+        <view class="menu-icon">
+          <t-icon name="books" size="40rpx" color="#fff" />
+        </view>
+        <view class="menu-content">
+          <view class="menu-title">使用指南</view>
+          <view class="menu-subtitle">了解如何创建角色</view>
+        </view>
+        <t-icon name="chevron-right" size="40rpx" color="#ccc" />
+      </view>
+      
+      <!-- 意见反馈 -->
+      <view class="menu-item" bindtap="onMenuTap" data-type="feedback">
+        <view class="menu-icon">
+          <t-icon name="chat" size="40rpx" color="#fff" />
+        </view>
+        <view class="menu-content">
+          <view class="menu-title">意见反馈</view>
+          <view class="menu-subtitle">帮助我们做得更好</view>
+        </view>
+        <t-icon name="chevron-right" size="40rpx" color="#ccc" />
+      </view>
+      
+      <!-- 余额充值 -->
+      <view class="menu-item" bindtap="onMenuTap" data-type="recharge">
+        <view class="menu-icon">
+          <t-icon name="wallet" size="40rpx" color="#fff" />
+        </view>
+        <view class="menu-content">
+          <view class="menu-title">余额充值</view>
+          <view class="menu-subtitle">购买创作次数</view>
+        </view>
+        <t-badge count="{{balance}}" class="menu-badge" />
+        <t-icon name="chevron-right" size="40rpx" color="#ccc" />
+      </view>
+      
+      <!-- 关于我们 -->
+      <view class="menu-item" bindtap="onMenuTap" data-type="about">
+        <view class="menu-icon">
+          <t-icon name="info-circle" size="40rpx" color="#fff" />
+        </view>
+        <view class="menu-content">
+          <view class="menu-title">关于我们</view>
+          <view class="menu-subtitle">版本 {{version}}</view>
+        </view>
+        <t-icon name="chevron-right" size="40rpx" color="#ccc" />
+      </view>
+    </view>
+    
+    <!-- 底部占位 -->
+    <view class="bottom-placeholder"></view>
+  </scroll-view>
+</view>

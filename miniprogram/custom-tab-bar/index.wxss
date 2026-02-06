@@ -1,0 +1,39 @@
+/* 自定义 TabBar 样式 */
+.custom-tabbar {
+  position: fixed;
+  bottom: 32rpx;
+  left: 32rpx;
+  right: 32rpx;
+  background: white;
+  border-radius: 48rpx;
+  display: flex;
+  padding: 20rpx 0;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
+  z-index: 999;
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+  padding: 8rpx 0;
+  transition: all 0.3s;
+}
+
+.tab-item.active .tab-text {
+  font-weight: 500;
+}
+
+.tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48rpx;
+}
+
+.tab-text {
+  font-size: 24rpx;
+  line-height: 1.2;
+}

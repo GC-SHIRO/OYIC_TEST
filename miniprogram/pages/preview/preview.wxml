@@ -1,0 +1,142 @@
+<!-- 预览角色卡页面 -->
+<view class="page-container">
+  <!-- 顶部导航 -->
+  <view class="navbar">
+    <view class="nav-back" bindtap="onBack">
+      <t-icon name="chevron-left" size="48rpx" color="#666" />
+    </view>
+    <text class="navbar-title">预览角色卡</text>
+    <view class="nav-placeholder"></view>
+  </view>
+  
+  <!-- 内容区域 -->
+  <scroll-view class="content-container" scroll-y enhanced show-scrollbar="{{false}}">
+    <!-- 加载中 -->
+    <view wx:if="{{loading}}" class="loading-container">
+      <t-loading theme="circular" size="80rpx" />
+      <text class="loading-text">正在生成角色卡...</text>
+    </view>
+    
+    <block wx:else>
+      <!-- 模板选择 -->
+      <view class="template-selector" wx:if="{{!readonly}}">
+        <view class="template-title">选择模板</view>
+        <scroll-view class="template-options" scroll-x enhanced show-scrollbar="{{false}}">
+          <view 
+            wx:for="{{templates}}" 
+            wx:key="id"
+            class="template-option {{selectedTemplate === item.id ? 'active' : ''}}"
+            bindtap="onSelectTemplate"
+            data-id="{{item.id}}"
+          >
+            {{item.name}}
+          </view>
+        </scroll-view>
+      </view>
+      
+      <!-- 角色卡片预览 -->
+      <view class="character-preview">
+        <view class="preview-header">
+          <view class="character-name">{{character.name}}</view>
+          <view class="character-subtitle">{{character.subtitle}}</view>
+        </view>
+        
+        <view class="preview-body">
+          <!-- 基本信息 -->
+          <view class="info-section">
+            <view class="section-title">基本信息</view>
+            <view class="section-content">
+              <view class="info-item">
+                <text class="info-label">年龄：</text>
+                <text class="info-value">{{character.age}}</text>
+              </view>
+              <view class="info-item">
+                <text class="info-label">性别：</text>
+                <text class="info-value">{{character.gender}}</text>
+              </view>
+              <view class="info-item">
+                <text class="info-label">身高：</text>
+                <text class="info-value">{{character.height}}</text>
+              </view>
+              <view class="info-item">
+                <text class="info-label">职业：</text>
+                <text class="info-value">{{character.occupation}}</text>
+              </view>
+            </view>
+          </view>
+          
+          <t-divider />
+          
+          <!-- 外貌特征 -->
+          <view class="info-section">
+            <view class="section-title">外貌特征</view>
+            <view class="section-content">
+              <text class="section-text">{{character.appearance}}</text>
+            </view>
+          </view>
+          
+          <t-divider />
+          
+          <!-- 性格特点 -->
+          <view class="info-section">
+            <view class="section-title">性格特点</view>
+            <view class="section-content">
+              <text class="section-text">{{character.personality}}</text>
+            </view>
+          </view>
+          
+          <t-divider />
+          
+          <!-- 背景故事 -->
+          <view class="info-section">
+            <view class="section-title">背景故事</view>
+            <view class="section-content">
+              <text class="section-text">{{character.backstory}}</text>
+            </view>
+          </view>
+          
+          <t-divider />
+          
+          <!-- 特殊能力 -->
+          <view class="info-section">
+            <view class="section-title">特殊能力</view>
+            <view class="tags-container">
+              <t-tag 
+                wx:for="{{character.abilities}}" 
+                wx:key="*this"
+                class="ability-tag"
+                theme="primary"
+                variant="dark"
+              >
+                {{item}}
+              </t-tag>
+            </view>
+          </view>
+        </view>
+      </view>
+    </block>
+    
+    <!-- 底部占位 -->
+    <view class="bottom-placeholder"></view>
+  </scroll-view>
+  
+  <!-- 底部操作栏 -->
+  <view class="action-bar" wx:if="{{!loading && !readonly}}">
+    <t-button 
+      class="btn-secondary" 
+      theme="light" 
+      size="large"
+      bindtap="onContinue"
+    >
+      继续创作
+    </t-button>
+    <t-button 
+      class="btn-primary" 
+      theme="primary" 
+      size="large"
+      bindtap="onComplete"
+    >
+      完成创建
+    </t-button>
+  </view>
+</view>

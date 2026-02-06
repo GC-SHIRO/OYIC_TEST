@@ -1,0 +1,70 @@
+<!-- 首页 - 角色卡中心 -->
+<view class="page-container">
+  <!-- 顶部标题 -->
+  <view class="navbar">
+    <text class="navbar-title">我的角色</text>
+  </view>
+  
+  <!-- 角色卡片横向滚动区域 -->
+  <view class="cards-container">
+    <scroll-view 
+      class="cards-scroll" 
+      scroll-x 
+      enable-flex
+      enhanced 
+      show-scrollbar="{{false}}"
+      scroll-left="{{scrollLeft}}"
+    >
+      <!-- 新建角色卡片 -->
+      <view class="character-card card-new" bindtap="onCreateCharacter">
+        <view class="new-icon">
+          <t-icon name="add" size="80px" color="#334155" />
+        </view>
+      </view>
+      
+      <!-- 未完成的角色卡片 -->
+      <view 
+        class="character-card card-incomplete" 
+        wx:for="{{incompleteCharacters}}" 
+        wx:key="id"
+        bindtap="onCardTap"
+        data-id="{{item.id}}"
+        data-status="incomplete"
+      >
+        <image 
+          src="{{item.image}}" 
+          class="card-image" 
+          mode="aspectFill"
+        />
+        <view class="card-info">
+          <view class="card-name">{{item.name}}</view>
+          <view class="card-desc">{{item.description}}</view>
+        </view>
+        <view class="card-blur-overlay">
+          <view class="incomplete-label">未完成</view>
+        </view>
+      </view>
+      
+      <!-- 已完成的角色卡片 -->
+      <view 
+        class="character-card card-completed" 
+        wx:for="{{completedCharacters}}" 
+        wx:key="id"
+        bindtap="onCardTap"
+        data-id="{{item.id}}"
+        data-status="completed"
+      >
+        <image 
+          src="{{item.image}}" 
+          class="card-image" 
+          mode="aspectFill"
+        />
+        <view class="card-info">
+          <view class="card-name">{{item.name}}</view>
+          <view class="card-desc">{{item.description}}</view>
+          <t-tag class="card-tag" variant="light" theme="primary">已完成</t-tag>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</view>
