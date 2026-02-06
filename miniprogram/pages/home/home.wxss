@@ -1,69 +1,86 @@
-/* 首页 - 角色卡中心样式 */
+/* 首页 - 角色卡中心样式（银色灰） */
 .page-container {
   height: 100vh;
-  background: #f5f5f5;
+  background: radial-gradient(140% 120% at 10% 0%, #f7f8fa 0%, #f0f2f5 40%, #eef0f3 100%);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  box-sizing: border-box; 
+  box-sizing: border-box;
+}
+
+@keyframes riseIn {
+  0% {
+    transform: translateY(16rpx);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* 顶部导航栏 */
 .navbar {
-  background: white;
-  padding: 95rpx 38rpx 24rpx;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 110rpx 38rpx 32rpx;
+  border-bottom: 2rpx solid rgba(229, 231, 235, 0.8);
+  box-shadow: 0 16rpx 40rpx rgba(17, 24, 39, 0.06);
   position: relative;
   z-index: 10;
 }
 
 .navbar-title {
-  font-size: 56rpx;
-  font-weight: 600;
-  color: #000;
+  font-size: 54rpx;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: 1rpx;
 }
 
 /* 角色卡片滚动容器 */
 .cards-container {
   flex: 1;
   position: relative;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .cards-scroll {
-  height: 100%;
   width: 100%;
   display: flex;
   flex-direction: row;
-  align-items: center; /* 垂直居中 */
-  /* 增加上下padding避免阴影截断，下方padding更大让卡片视觉上偏上 */
-  padding: 40rpx 0 170rpx; 
+  align-items: center;
+  padding: 50rpx 0 230rpx;
   box-sizing: border-box;
 }
 
 /* 角色卡片 */
 .character-card {
-  width: 520rpx;
-  height: 960rpx;
+  width: 500rpx;
+  height: 950rpx;
   border-radius: 64rpx;
   overflow: hidden;
-  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.15);
   position: relative;
   flex-shrink: 0;
-  /* 使用 margin 控制间距，紧贴屏幕边缘 */
-  margin-left: 32rpx; 
+  margin: 40rpx 0 40rpx 32rpx;
+  box-shadow: 0 16rpx 40rpx rgba(17, 24, 39, 0.10);
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid rgba(226, 232, 240, 0.8);
+  animation: riseIn 420ms ease-out both;
+  transition: transform 150ms ease, box-shadow 150ms ease;
 }
 
 .character-card:last-child {
-  margin-right: 32rpx; /* 最后一个卡片右侧留出间距 */
+  margin-right: 32rpx;
 }
 
 .character-card:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
+  box-shadow: 0 8rpx 24rpx rgba(17, 24, 39, 0.12);
 }
 
 /* 已完成的卡片 */
 .card-completed {
-  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  background: linear-gradient(160deg, #f9fafb 0%, #e5e7eb 65%, #cbd5e1 100%);
 }
 
 .card-image {
@@ -72,19 +89,20 @@
 }
 
 .card-info {
-  padding: 32rpx;
-  color: white;
+  padding: 32rpx 36rpx 36rpx;
+  color: #111827;
 }
 
 .card-name {
   font-size: 40rpx;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 16rpx;
+  letter-spacing: 1rpx;
 }
 
 .card-desc {
   font-size: 26rpx;
-  opacity: 0.9;
+  color: #6b7280;
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -99,7 +117,7 @@
 
 /* 未完成的卡片 */
 .card-incomplete {
-  background: linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%);
+  background: linear-gradient(160deg, #f5f6f7 0%, #d7dce2 100%);
 }
 
 .card-blur-overlay {
@@ -108,7 +126,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -116,18 +134,20 @@
 }
 
 .incomplete-label {
-  color: #d32f2f;
-  font-size: 48rpx;
+  color: #6b7280;
+  font-size: 44rpx;
   font-weight: 700;
-  text-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.1);
+  letter-spacing: 2rpx;
+  text-shadow: 0 4rpx 12rpx rgba(17, 24, 39, 0.08);
 }
 
 /* 新建卡片 */
 .card-new {
-  background: white;
+  background: linear-gradient(135deg, #ffffff 0%, #eef0f3 100%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: 2rpx dashed #cbd5e1;
 }
 
 .new-icon {

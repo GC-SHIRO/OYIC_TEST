@@ -1,20 +1,21 @@
-/* 创建角色 - AI对话页面样式 */
+/* 创建角色 - AI对话页面样式（银色灰） */
 .page-container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: linear-gradient(180deg, #f7f8fa 0%, #eef0f3 100%);
   display: flex;
   flex-direction: column;
 }
 
 /* 顶部导航栏 */
 .navbar {
-  background: white;
+  background: rgba(255, 255, 255, 0.92);
   padding: 88rpx 32rpx 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+  box-shadow: 0 16rpx 36rpx rgba(17, 24, 39, 0.06);
   display: flex;
   align-items: center;
   justify-content: space-between;
   position: relative;
+  border-bottom: 2rpx solid rgba(229, 231, 235, 0.7);
 }
 
 .nav-back {
@@ -24,6 +25,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #f3f4f6;
 }
 
 .navbar-title {
@@ -31,19 +33,20 @@
   left: 50%;
   transform: translateX(-50%);
   font-size: 36rpx;
-  font-weight: 600;
-  color: #000;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: 1rpx;
 }
 
 .nav-confirm {
   width: 96rpx;
   height: 96rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  background: linear-gradient(135deg, #9ca3af 0%, #4b5563 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.3);
+  box-shadow: 0 10rpx 26rpx rgba(17, 24, 39, 0.18);
 }
 
 .nav-confirm:active {
@@ -72,13 +75,13 @@
   display: flex;
   gap: 24rpx;
   max-width: 85%;
-  animation: slideIn 0.3s ease-out;
+  animation: slideIn 0.25s ease-out;
 }
 
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateY(20rpx);
+    transform: translateY(16rpx);
   }
   to {
     opacity: 1;
@@ -96,14 +99,15 @@
   height: 72rpx;
   min-width: 72rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  background: linear-gradient(135deg, #e5e7eb 0%, #9ca3af 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #111827;
   font-size: 22rpx;
-  font-weight: 500;
+  font-weight: 600;
   flex-shrink: 0;
+  box-shadow: 0 8rpx 18rpx rgba(17, 24, 39, 0.12);
 }
 
 .message-content {
@@ -117,15 +121,16 @@
 .message-bubble {
   padding: 24rpx 32rpx;
   border-radius: 32rpx;
-  line-height: 1.5;
+  line-height: 1.6;
   font-size: 30rpx;
 }
 
 .message-ai .message-bubble {
-  background: white;
-  color: #333;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1f2937;
   border-bottom-left-radius: 8rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6rpx 18rpx rgba(17, 24, 39, 0.08);
+  border: 2rpx solid rgba(229, 231, 235, 0.9);
 }
 
 .typing-bubble {
@@ -139,13 +144,13 @@
 }
 
 .message-user .message-avatar {
-  background: #e0e0e0;
-  color: #666;
+  background: linear-gradient(135deg, #9ca3af 0%, #4b5563 100%);
+  color: #f9fafb;
 }
 
 .message-user .message-bubble {
-  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
-  color: white;
+  background: linear-gradient(135deg, #4b5563 0%, #1f2937 100%);
+  color: #f9fafb;
   border-bottom-right-radius: 8rpx;
 }
 
@@ -161,6 +166,7 @@
   height: 300rpx;
   border-radius: 24rpx;
   overflow: hidden;
+  border: 2rpx solid rgba(229, 231, 235, 0.9);
 }
 
 /* 底部输入栏 */
@@ -169,13 +175,14 @@
   bottom: 32rpx;
   left: 32rpx;
   right: 32rpx;
-  background: white;
+  background: rgba(255, 255, 255, 0.96);
   padding: 16rpx 20rpx;
   border-radius: 48rpx;
   display: flex;
   gap: 16rpx;
   align-items: center;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
+  box-shadow: 0 16rpx 32rpx rgba(17, 24, 39, 0.12);
+  border: 2rpx solid rgba(229, 231, 235, 0.9);
 }
 
 .action-btn {
@@ -183,7 +190,7 @@
   height: 72rpx;
   min-width: 72rpx;
   border-radius: 50%;
-  background: #f5f5f5;
+  background: #f3f4f6;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -191,7 +198,7 @@
 }
 
 .action-btn:active {
-  background: #e0e0e0;
+  background: #e5e7eb;
 }
 
 .input-wrapper {
@@ -203,10 +210,11 @@
   width: 100%;
   height: 72rpx;
   padding: 0 32rpx;
-  border: 2rpx solid #e0e0e0;
+  border: 2rpx solid #e5e7eb;
   border-radius: 36rpx;
   font-size: 28rpx;
   box-sizing: border-box;
+  background: #f9fafb;
 }
 
 .send-btn {
@@ -214,7 +222,7 @@
   height: 72rpx;
   min-width: 72rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  background: linear-gradient(135deg, #9ca3af 0%, #4b5563 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -222,5 +230,25 @@
 }
 
 .send-btn:active {
+  transform: scale(0.95);
+}
+
+/* 悬浮确认按钮 */
+.floating-confirm-btn {
+  position: fixed;
+  bottom: 160rpx;
+  left: 32rpx;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #9ca3af 0%, #4b5563 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10rpx 26rpx rgba(17, 24, 39, 0.18);
+  z-index: 100;
+}
+
+.floating-confirm-btn:active {
   transform: scale(0.95);
 }

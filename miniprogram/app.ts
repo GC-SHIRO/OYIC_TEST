@@ -7,6 +7,15 @@ App<IAppOption>({
   },
 
   onLaunch() {
+    // 预加载 TDesign 图标字体（加快 icon 显示速度）
+    wx.loadFontFace({
+      global: true,
+      family: 't',
+      source: 'url("https://tdesign.gtimg.com/icon/0.4.1/fonts/t.woff")',
+      success: () => console.log('TDesign icon font loaded'),
+      fail: (err) => console.warn('Font load failed:', err),
+    });
+
     // 初始化云开发
     if (!wx.cloud) {
       console.error('请使用 2.2.3 或以上的基础库以使用云能力');

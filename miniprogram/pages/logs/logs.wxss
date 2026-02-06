@@ -2,15 +2,26 @@ page {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  background: linear-gradient(180deg, #f7f8fa 0%, #eef0f3 100%);
 }
+
 .scrollarea {
   flex: 1;
   overflow-y: hidden;
+  padding: 24rpx;
 }
+
 .log-item {
   margin-top: 20rpx;
   text-align: center;
+  padding: 24rpx 20rpx;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 20rpx;
+  color: #4b5563;
+  box-shadow: 0 10rpx 22rpx rgba(17, 24, 39, 0.06);
+  border: 2rpx solid rgba(229, 231, 235, 0.9);
 }
+
 .log-item:last-child {
   padding-bottom: env(safe-area-inset-bottom);
 }

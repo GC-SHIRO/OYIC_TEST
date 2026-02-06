@@ -23,14 +23,11 @@
         class="user-avatar" 
         image="{{userInfo.avatar}}" 
         icon="{{userInfo.avatar ? '' : 'user'}}"
-        size="144rpx"
+        size="130rpx"
       />
       <view class="user-info">
         <view class="user-name">{{userInfo.nickname}}</view>
         <view class="user-signature">{{userInfo.signature || '这个人很懒，什么都没写~'}}</view>
-      </view>
-      <view class="edit-btn" bindtap="onEditProfile">
-        <t-icon name="edit" size="32rpx" color="#fff" />
       </view>
     </view>
   </view>
@@ -72,10 +69,22 @@
     
     <!-- 菜单列表 -->
     <view class="menu-section">
+      <!-- 编辑资料 -->
+      <view class="menu-item" bindtap="onEditProfile">
+        <view class="menu-icon">
+          <t-icon name="edit" size="40rpx" color="#fff" />
+        </view>
+        <view class="menu-content">
+          <view class="menu-title">编辑资料</view>
+          <view class="menu-subtitle">修改头像昵称等信息</view>
+        </view>
+        <t-icon name="chevron-right" size="40rpx" color="#ccc" />
+      </view>
+
       <!-- 使用指南 -->
       <view class="menu-item" bindtap="onMenuTap" data-type="guide">
         <view class="menu-icon">
-          <t-icon name="books" size="40rpx" color="#fff" />
+          <t-icon name="help-circle" size="40rpx" color="#fff" />
         </view>
         <view class="menu-content">
           <view class="menu-title">使用指南</view>

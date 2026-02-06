@@ -6,9 +6,6 @@
       <t-icon name="chevron-left" size="48rpx" color="#666" />
     </view>
     <text class="navbar-title">创建角色</text>
-    <view class="nav-confirm" bindtap="onConfirm">
-      <t-icon name="check" size="40rpx" color="#fff" />
-    </view>
   </view>
   
   <!-- 聊天消息区域 -->
@@ -68,6 +65,11 @@
     <view class="bottom-placeholder"></view>
   </scroll-view>
   
+  <!-- 悬浮确认按钮 -->
+  <view class="floating-confirm-btn" bindtap="onConfirm">
+    <t-icon name="check" size="48rpx" color="#fff" />
+  </view>
+
   <!-- 底部输入栏 -->
   <view class="input-container">
     <!-- 上传按钮 -->
