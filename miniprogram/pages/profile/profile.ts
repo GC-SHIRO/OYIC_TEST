@@ -1,9 +1,5 @@
-// 我的 - 用户中心页面
-interface IUserInfo {
-  userId: string;
-  nickname: string;
-  avatar: string;
-}
+// 我的 - 用户中心页面（基于云开发登录）
+import { cloudLogin, updateNickname, updateSignature, uploadAvatar, logout, isLoggedIn, getLocalUserInfo } from '../../services/user';
 
 interface IWork {
   id: string;
@@ -12,181 +8,399 @@ interface IWork {
   date: string;
 }
 
+const app = getApp<IAppOption>();
+
 Page({
   data: {
+    // 登录状态
+    isLoggedIn: false,
+    isLoading: false,
+
+    // 用户信息
     userInfo: {
-      userId: 'OC2026001',
-      nickname: '创作者',
-      avatar: ''
-    } as IUserInfo,
+      openId: '',
+      nickname: '微信用户',
+      avatar: '',
+      balance: 0,
+      signature: '',
+    },
+
+    // 注册表单（头像+昵称收集）
+    showRegisterPopup: false,
+    registerAvatar: '',
+    registerNickname: '',
+    registerSignature: '',
+
+    // 作品列表
     works: [] as IWork[],
-    balance: 10,
-    version: '1.0.0'
+    version: '1.0.0',
   },
 
   onLoad() {
-    this.loadUserInfo();
+    this.checkLogin();
     this.loadWorks();
   },
 
   onShow() {
-    // 每次显示时刷新作品列表
     this.loadWorks();
-    
+
     // 更新自定义 tabbar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({
-        selected: 1
-      });
+      this.getTabBar().setData({ selected: 1 });
     }
   },
 
-  // 加载用户信息
-  loadUserInfo() {
-    const userInfo = wx.getStorageSync('userInfo');
-    
-    if (userInfo) {
-      this.setData({ userInfo });
+  // ========== 登录相关 ==========
+
+  /**
+   * 检查本地登录状态
+   */
+  checkLogin() {
+    const loggedIn = isLoggedIn();
+    if (loggedIn) {
+      const userInfo = getLocalUserInfo();
+      if (userInfo) {
+        this.setData({
+          isLoggedIn: true,
+          userInfo: {
+            openId: userInfo.openId,
+            nickname: userInfo.nickname || '创作者',
+            avatar: userInfo.avatar || '',
+            balance: userInfo.balance || 0,
+            signature: userInfo.signature || '',
+          },
+        });
+      }
     } else {
-      // 获取微信用户信息
-      this.setData({
-        userInfo: {
-          userId: 'OC' + Date.now().toString().slice(-7),
-          nickname: '创作者',
-          avatar: ''
-        }
-      });
+      this.setData({ isLoggedIn: false });
     }
   },
 
-  // 加载作品列表
+  /**
+   * 点击登录按钮 - 先调用云函数获取openId，再弹出注册弹窗收集信息
+   */
+  async onLoginTap() {
+    if (this.data.isLoading) return;
+    this.setData({ isLoading: true });
+
+    try {
+      // 先调用云函数登录获取 openId
+      const userData = await cloudLogin();
+
+      if (userData.isNewUser || !userData.nickname) {
+        // 新用户或没有昵称的用户，弹出信息收集弹窗
+        this.setData({
+          isLoading: false,
+          showRegisterPopup: true,
+          registerAvatar: '',
+          registerNickname: '',
+          registerSignature: '',
+          userInfo: {
+            openId: userData.openId,
+            nickname: userData.nickname || '微信用户',
+            avatar: userData.avatar || '',
+            balance: userData.balance || 0,
+            signature: userData.signature || '',
+          },
+        });
+      } else {
+        // 已有完整信息的老用户
+        this.setData({
+          isLoggedIn: true,
+          isLoading: false,
+          userInfo: {
+            openId: userData.openId,
+            nickname: userData.nickname,
+            avatar: userData.avatar,
+            balance: userData.balance || 0,
+            signature: userData.signature || '',
+          },
+        });
+        app.globalData.isLoggedIn = true;
+        app.globalData.openId = userData.openId;
+        app.globalData.userInfo = userData;
+
+        wx.showToast({ title: '登录成功', icon: 'success' });
+      }
+    } catch (err) {
+      console.error('登录失败:', err);
+      this.setData({ isLoading: false });
+      wx.showToast({ title: '登录失败，请重试', icon: 'none' });
+    }
+  },
+
+  /**
+   * 用户选择头像（微信头像快填）
+   */
+  onChooseAvatar(e: any) {
+    const { avatarUrl } = e.detail;
+    if (avatarUrl) {
+      this.setData({ registerAvatar: avatarUrl });
+    }
+  },
+
+  /**
+   * 用户输入昵称
+   */
+  onNicknameInput(e: any) {
+    this.setData({ registerNickname: e.detail.value || '' });
+  },
+
+  /**
+   * 用户输入个性签名
+   */
+  onSignatureInput(e: any) {
+    this.setData({ registerSignature: e.detail.value || '' });
+  },
+
+  /**
+   * 确认注册信息
+   */
+  async onRegisterConfirm() {
+    const { registerAvatar, registerNickname } = this.data;
+
+    if (!registerNickname.trim()) {
+      wx.showToast({ title: '请输入昵称', icon: 'none' });
+      return;
+    }
+
+    this.setData({ isLoading: true });
+
+    try {
+      // 上传头像
+      let avatarUrl = '';
+      if (registerAvatar) {
+        avatarUrl = await uploadAvatar(registerAvatar);
+      }
+
+      // 更新昵称和签名
+      await updateNickname(registerNickname.trim());
+      if (this.data.registerSignature.trim()) {
+        await updateSignature(this.data.registerSignature.trim());
+      }
+
+      const userInfo = {
+        openId: this.data.userInfo.openId,
+        nickname: registerNickname.trim(),
+        avatar: avatarUrl || this.data.userInfo.avatar,
+        balance: this.data.userInfo.balance,
+        signature: this.data.registerSignature.trim() || '',
+      };
+
+      // 更新本地缓存
+      wx.setStorageSync('cloudUserInfo', userInfo);
+
+      this.setData({
+        isLoggedIn: true,
+        isLoading: false,
+        showRegisterPopup: false,
+        userInfo,
+      });
+
+      app.globalData.isLoggedIn = true;
+      app.globalData.openId = userInfo.openId;
+      app.globalData.userInfo = userInfo;
+
+      wx.showToast({ title: '注册成功', icon: 'success' });
+    } catch (err) {
+      console.error('注册失败:', err);
+      this.setData({ isLoading: false });
+      wx.showToast({ title: '注册失败，请重试', icon: 'none' });
+    }
+  },
+
+  /**
+   * 取消注册弹窗
+   */
+  onRegisterCancel() {
+    this.setData({ showRegisterPopup: false });
+  },
+
+  /**
+   * 退出登录
+   */
+  onLogout() {
+    wx.showModal({
+      title: '退出登录',
+      content: '确定要退出登录吗？',
+      success: (res) => {
+        if (res.confirm) {
+          logout();
+          app.globalData.isLoggedIn = false;
+          app.globalData.openId = '';
+          app.globalData.userInfo = undefined;
+
+          this.setData({
+            isLoggedIn: false,
+            userInfo: {
+              openId: '',
+              nickname: '微信用户',
+              avatar: '',
+              balance: 0,
+              signature: '',
+            },
+          });
+
+          wx.showToast({ title: '已退出', icon: 'success' });
+        }
+      },
+    });
+  },
+
+  // ========== 用户信息编辑 ==========
+
+  onEditProfile() {
+    if (!this.data.isLoggedIn) {
+      this.onLoginTap();
+      return;
+    }
+    wx.showActionSheet({
+      itemList: ['修改昵称', '更换头像', '修改签名'],
+      success: (res) => {
+        if (res.tapIndex === 0) {
+          this.editNickname();
+        } else if (res.tapIndex === 1) {
+          this.changeAvatar();
+        } else if (res.tapIndex === 2) {
+          this.editSignature();
+        }
+      },
+    });
+  },
+
+  async editNickname() {
+    wx.showModal({
+      title: '修改昵称',
+      editable: true,
+      placeholderText: '请输入新昵称',
+      success: async (res) => {
+        if (res.confirm && res.content) {
+          wx.showLoading({ title: '保存中...' });
+          const success = await updateNickname(res.content);
+          wx.hideLoading();
+
+          if (success) {
+            const userInfo = { ...this.data.userInfo, nickname: res.content };
+            this.setData({ userInfo });
+
+            if (app.globalData.userInfo) {
+              app.globalData.userInfo.nickname = res.content;
+            }
+
+            wx.showToast({ title: '修改成功', icon: 'success' });
+          } else {
+            wx.showToast({ title: '修改失败', icon: 'none' });
+          }
+        }
+      },
+    });
+  },
+
+  async editSignature() {
+    wx.showModal({
+      title: '修改个性签名',
+      editable: true,
+      placeholderText: this.data.userInfo.signature || '写一句个性签名吧',
+      success: async (res) => {
+        if (res.confirm && res.content !== undefined) {
+          wx.showLoading({ title: '保存中...' });
+          const success = await updateSignature(res.content.trim());
+          wx.hideLoading();
+
+          if (success) {
+            const userInfo = { ...this.data.userInfo, signature: res.content.trim() };
+            this.setData({ userInfo });
+
+            if (app.globalData.userInfo) {
+              (app.globalData.userInfo as any).signature = res.content.trim();
+            }
+
+            wx.showToast({ title: '修改成功', icon: 'success' });
+          } else {
+            wx.showToast({ title: '修改失败', icon: 'none' });
+          }
+        }
+      },
+    });
+  },
+
+  changeAvatar() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      success: async (res) => {
+        const tempFilePath = res.tempFiles[0].tempFilePath;
+        wx.showLoading({ title: '上传中...' });
+
+        try {
+          const fileID = await uploadAvatar(tempFilePath);
+          wx.hideLoading();
+
+          const userInfo = { ...this.data.userInfo, avatar: fileID };
+          this.setData({ userInfo });
+
+          if (app.globalData.userInfo) {
+            app.globalData.userInfo.avatar = fileID;
+          }
+
+          wx.showToast({ title: '更换成功', icon: 'success' });
+        } catch (err) {
+          wx.hideLoading();
+          wx.showToast({ title: '上传失败', icon: 'none' });
+        }
+      },
+    });
+  },
+
+  // ========== 作品列表 ==========
+
   loadWorks() {
     const characterList = wx.getStorageSync('characterList') || [];
     const works: IWork[] = [];
-    
+
     characterList.forEach((id: string) => {
       const character = wx.getStorageSync(`character_${id}`);
       if (character && character.status === 'completed') {
         works.push({
-          id: id,
+          id,
           name: character.name,
           image: character.image || '/assets/images/character_placeholder.png',
-          date: this.formatDate(character.createdAt || Date.now())
+          date: this.formatDate(character.createdAt || Date.now()),
         });
       }
     });
 
-    // 如果没有作品，显示示例数据
     if (works.length === 0) {
       works.push(
-        {
-          id: '1',
-          name: '丰川祥子',
-          image: '/assets/images/character1.png',
-          date: '2026-01-28'
-        },
-        {
-          id: '2',
-          name: '三角初华',
-          image: '/assets/images/character2.png',
-          date: '2026-01-25'
-        },
-        {
-          id: '3',
-          name: '若叶睦',
-          image: '/assets/images/character3.png',
-          date: '2026-01-20'
-        }
+        { id: '1', name: '丰川祥子', image: '/assets/images/character1.png', date: '2026-01-28' },
+        { id: '2', name: '三角初华', image: '/assets/images/character2.png', date: '2026-01-25' },
+        { id: '3', name: '若叶睦', image: '/assets/images/character3.png', date: '2026-01-20' },
       );
     }
 
     this.setData({ works });
   },
 
-  // 格式化日期
   formatDate(timestamp: number): string {
     const date = new Date(timestamp);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   },
 
-  // 编辑个人资料
-  onEditProfile() {
-    wx.showActionSheet({
-      itemList: ['修改昵称', '更换头像'],
-      success: (res) => {
-        if (res.tapIndex === 0) {
-          this.editNickname();
-        } else if (res.tapIndex === 1) {
-          this.changeAvatar();
-        }
-      }
-    });
-  },
-
-  // 修改昵称
-  editNickname() {
-    wx.showModal({
-      title: '修改昵称',
-      editable: true,
-      placeholderText: '请输入新昵称',
-      success: (res) => {
-        if (res.confirm && res.content) {
-          const userInfo = { ...this.data.userInfo, nickname: res.content };
-          this.setData({ userInfo });
-          wx.setStorageSync('userInfo', userInfo);
-          
-          wx.showToast({
-            title: '修改成功',
-            icon: 'success'
-          });
-        }
-      }
-    });
-  },
-
-  // 更换头像
-  changeAvatar() {
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success: (res) => {
-        const tempFilePath = res.tempFiles[0].tempFilePath;
-        const userInfo = { ...this.data.userInfo, avatar: tempFilePath };
-        this.setData({ userInfo });
-        wx.setStorageSync('userInfo', userInfo);
-        
-        wx.showToast({
-          title: '更换成功',
-          icon: 'success'
-        });
-      }
-    });
-  },
-
-  // 查看全部作品
   onViewAllWorks() {
-    wx.showToast({
-      title: '功能开发中',
-      icon: 'none'
-    });
+    wx.showToast({ title: '功能开发中', icon: 'none' });
   },
 
-  // 点击作品
   onWorkTap(e: WechatMiniprogram.TouchEvent) {
     const { id } = e.currentTarget.dataset;
-    wx.navigateTo({
-      url: `/pages/preview/preview?characterId=${id}&readonly=true`
-    });
+    wx.navigateTo({ url: `/pages/preview/preview?characterId=${id}&readonly=true` });
   },
 
-  // 菜单点击
+  // ========== 菜单 ==========
+
   onMenuTap(e: WechatMiniprogram.TouchEvent) {
     const { type } = e.currentTarget.dataset;
-    
+
     switch (type) {
       case 'guide':
         this.showGuide();
@@ -203,38 +417,31 @@ Page({
     }
   },
 
-  // 使用指南
   showGuide() {
     wx.showModal({
       title: '使用指南',
       content: '1. 点击首页的"+"按钮创建新角色\n2. 与AI对话描述你的角色想法\n3. 确认生成后得到完整的角色信息卡\n4. 所有作品都会保存在"我的"页面',
-      showCancel: false
+      showCancel: false,
     });
   },
 
-  // 意见反馈
   showFeedback() {
     wx.showModal({
       title: '意见反馈',
       content: '感谢您的反馈！请发送邮件至：feedback@oyic.com',
-      showCancel: false
+      showCancel: false,
     });
   },
 
-  // 余额充值
   showRecharge() {
-    wx.showToast({
-      title: '功能开发中',
-      icon: 'none'
-    });
+    wx.showToast({ title: '功能开发中', icon: 'none' });
   },
 
-  // 关于我们
   showAbout() {
     wx.showModal({
       title: '关于O亿C',
       content: 'O亿C是基于AI Agent的原创角色创作灵感助手，帮助ACGN爱好者快速构建专业的角色信息卡。\n\n版本：1.0.0',
-      showCancel: false
+      showCancel: false,
     });
-  }
+  },
 });

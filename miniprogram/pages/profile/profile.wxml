@@ -2,15 +2,32 @@
 <view class="page-container">
   <!-- 用户信息头部 -->
   <view class="user-header">
-    <view class="user-profile">
+    <!-- 未登录状态 -->
+    <view wx:if="{{!isLoggedIn}}" class="login-section">
+      <view class="login-avatar-wrap">
+        <t-avatar class="login-avatar" icon="user" size="128rpx" />
+      </view>
+      <view class="login-text">登录后体验完整功能</view>
+      <button 
+        class="login-btn" 
+        bindtap="onLoginTap" 
+        loading="{{isLoading}}"
+      >
+        微信一键登录
+      </button>
+    </view>
+
+    <!-- 已登录状态 -->
+    <view wx:else class="user-profile">
       <t-avatar 
         class="user-avatar" 
         image="{{userInfo.avatar}}" 
+        icon="{{userInfo.avatar ? '' : 'user'}}"
         size="144rpx"
       />
       <view class="user-info">
         <view class="user-name">{{userInfo.nickname}}</view>
-        <view class="user-id">ID: {{userInfo.userId}}</view>
+        <view class="user-signature">{{userInfo.signature || '这个人很懒，什么都没写~'}}</view>
       </view>
       <view class="edit-btn" bindtap="onEditProfile">
         <t-icon name="edit" size="32rpx" color="#fff" />
@@ -88,7 +105,7 @@
           <view class="menu-title">余额充值</view>
           <view class="menu-subtitle">购买创作次数</view>
         </view>
-        <t-badge count="{{balance}}" class="menu-badge" />
+        <t-badge count="{{userInfo.balance}}" class="menu-badge" />
         <t-icon name="chevron-right" size="40rpx" color="#ccc" />
       </view>
       
@@ -103,9 +120,75 @@
         </view>
         <t-icon name="chevron-right" size="40rpx" color="#ccc" />
       </view>
+
+      <!-- 退出登录 (仅登录后显示) -->
+      <view wx:if="{{isLoggedIn}}" class="menu-item logout-item" bindtap="onLogout">
+        <view class="menu-icon logout-icon">
+          <t-icon name="poweroff" size="40rpx" color="#fff" />
+        </view>
+        <view class="menu-content">
+          <view class="menu-title logout-text">退出登录</view>
+          <view class="menu-subtitle">清除当前登录状态</view>
+        </view>
+        <t-icon name="chevron-right" size="40rpx" color="#ccc" />
+      </view>
     </view>
     
     <!-- 底部占位 -->
     <view class="bottom-placeholder"></view>
   </scroll-view>
 </view>
+
+<!-- 注册信息收集弹窗 -->
+<t-popup 
+  visible="{{showRegisterPopup}}" 
+  placement="bottom"
+  bind:visible-change="onRegisterCancel"
+>
+  <view class="register-popup">
+    <view class="register-title">完善个人信息</view>
+    <view class="register-subtitle">设置你的头像和昵称</view>
+
+    <!-- 头像选择 -->
+    <view class="register-avatar-section">
+      <button class="avatar-choose-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+        <t-avatar 
+          class="register-avatar" 
+          image="{{registerAvatar}}" 
+          icon="{{registerAvatar ? '' : 'user'}}"
+          size="160rpx"
+        />
+        <view class="avatar-tip">点击选择头像</view>
+      </button>
+    </view>
+
+    <!-- 昵称输入 -->
+    <view class="register-nickname-section">
+      <input 
+        class="nickname-input" 
+        type="nickname" 
+        placeholder="请输入昵称" 
+        value="{{registerNickname}}"
+        bindinput="onNicknameInput"
+        maxlength="20"
+      />
+    </view>
+
+    <!-- 个性签名输入 -->
+    <view class="register-nickname-section">
+      <input 
+        class="nickname-input" 
+        placeholder="写一句个性签名吧" 
+        value="{{registerSignature}}"
+        bindinput="onSignatureInput"
+        maxlength="50"
+      />
+    </view>
+
+    <!-- 操作按钮 -->
+    <view class="register-actions">
+      <button class="register-cancel-btn" bindtap="onRegisterCancel">跳过</button>
+      <button class="register-confirm-btn" bindtap="onRegisterConfirm" loading="{{isLoading}}">确认</button>
+    </view>
+  </view>
+</t-popup>
