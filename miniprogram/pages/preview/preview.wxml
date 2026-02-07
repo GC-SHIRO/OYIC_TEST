@@ -18,27 +18,12 @@
     </view>
     
     <block wx:else>
-      <!-- 模板选择 -->
-      <view class="template-selector" wx:if="{{!readonly}}">
-        <view class="template-title">选择模板</view>
-        <scroll-view class="template-options" scroll-x enhanced show-scrollbar="{{false}}">
-          <view 
-            wx:for="{{templates}}" 
-            wx:key="id"
-            class="template-option {{selectedTemplate === item.id ? 'active' : ''}}"
-            bindtap="onSelectTemplate"
-            data-id="{{item.id}}"
-          >
-            {{item.name}}
-          </view>
-        </scroll-view>
-      </view>
-      
       <!-- 角色卡片预览 -->
       <view class="character-preview">
+        <!-- 头部：姓名 -->
         <view class="preview-header">
           <view class="character-name">{{character.name}}</view>
-          <view class="character-subtitle">{{character.subtitle}}</view>
+          <view class="character-intro">{{character.introduction}}</view>
         </view>
         
         <view class="preview-body">
@@ -47,71 +32,170 @@
             <view class="section-title">基本信息</view>
             <view class="section-content">
               <view class="info-item">
-                <text class="info-label">年龄：</text>
-                <text class="info-value">{{character.age}}</text>
+                <text class="info-label">姓名：</text>
+                <text class="info-value">{{character.name}}</text>
               </view>
               <view class="info-item">
                 <text class="info-label">性别：</text>
                 <text class="info-value">{{character.gender}}</text>
               </view>
               <view class="info-item">
-                <text class="info-label">身高：</text>
-                <text class="info-value">{{character.height}}</text>
+                <text class="info-label">星座：</text>
+                <text class="info-value">{{character.constellation}}</text>
               </view>
               <view class="info-item">
-                <text class="info-label">职业：</text>
-                <text class="info-value">{{character.occupation}}</text>
+                <text class="info-label">生日：</text>
+                <text class="info-value">{{character.birthday}}</text>
+              </view>
+              <view class="info-item">
+                <text class="info-label">物种：</text>
+                <text class="info-value">{{character.species}}</text>
               </view>
             </view>
           </view>
           
-          <t-divider />
+          <view class="section-divider"></view>
           
-          <!-- 外貌特征 -->
+          <!-- 性格标签 -->
           <view class="info-section">
-            <view class="section-title">外貌特征</view>
-            <view class="section-content">
-              <text class="section-text">{{character.appearance}}</text>
-            </view>
-          </view>
-          
-          <t-divider />
-          
-          <!-- 性格特点 -->
-          <view class="info-section">
-            <view class="section-title">性格特点</view>
-            <view class="section-content">
-              <text class="section-text">{{character.personality}}</text>
-            </view>
-          </view>
-          
-          <t-divider />
-          
-          <!-- 背景故事 -->
-          <view class="info-section">
-            <view class="section-title">背景故事</view>
-            <view class="section-content">
-              <text class="section-text">{{character.backstory}}</text>
-            </view>
-          </view>
-          
-          <t-divider />
-          
-          <!-- 特殊能力 -->
-          <view class="info-section">
-            <view class="section-title">特殊能力</view>
-            <view class="tags-container">
-              <t-tag 
-                wx:for="{{character.abilities}}" 
+            <view class="section-title">性格标签</view>
+            <view class="personality-tags">
+              <view 
+                wx:for="{{character.personalityTags}}" 
                 wx:key="*this"
-                class="ability-tag"
-                theme="primary"
-                variant="dark"
+                class="personality-tag"
               >
                 {{item}}
-              </t-tag>
+              </view>
             </view>
           </view>
+          
+          <view class="section-divider"></view>
+          
+          <!-- 外观描述 -->
+          <view class="info-section">
+            <view class="section-title">外观描述</view>
+            <view class="appearance-attrs">
+              <view class="appearance-attr">
+                <view class="attr-color-dot hair-dot"></view>
+                <text class="attr-label">发色</text>
+                <text class="attr-value">{{character.appearance.hairColor}}</text>
+              </view>
+              <view class="appearance-attr">
+                <view class="attr-color-dot eye-dot"></view>
+                <text class="attr-label">瞳色</text>
+                <text class="attr-value">{{character.appearance.eyeColor}}</text>
+              </view>
+            </view>
+            <view class="appearance-detail-wrap">
+              <text class="appearance-detail">{{character.appearance.detail}}</text>
+            </view>
+          </view>
+          
+          <view class="section-divider"></view>
+          
+          <!-- 性格描述 -->
+          <view class="info-section">
+            <view class="section-title">性格描述</view>
+            <view class="section-content">
+              <text class="long-text">{{character.personality}}</text>
+            </view>
+          </view>
+          
+          <view class="section-divider"></view>
+          
+          <!-- 角色背景 -->
+          <view class="info-section">
+            <view class="section-title">角色背景</view>
+            <view class="section-content">
+              <text class="long-text">{{character.backstory}}</text>
+            </view>
+          </view>
+          
+          <!-- 故事线（可选） -->
+          <block wx:if="{{character.storyline}}">
+            <view class="section-divider"></view>
+            <view class="info-section">
+              <view class="section-title">故事线</view>
+              <view class="section-content">
+                <text class="long-text">{{character.storyline}}</text>
+              </view>
+            </view>
+          </block>
+          
+          <!-- 特殊能力（可选） -->
+          <block wx:if="{{character.abilities.length > 0}}">
+            <view class="section-divider"></view>
+            <view class="info-section">
+              <view class="section-title">特殊能力</view>
+              <view class="ability-list">
+                <view 
+                  wx:for="{{character.abilities}}" 
+                  wx:key="name"
+                  class="ability-item"
+                >
+                  <text class="ability-name">{{item.name}}</text>
+                  <text class="ability-desc">{{item.description}}</text>
+                </view>
+              </view>
+            </view>
+          </block>
+          
+          <!-- 关系网（可选） -->
+          <block wx:if="{{character.relationships.length > 0}}">
+            <view class="section-divider"></view>
+            <view class="info-section">
+              <view class="section-title">关系网</view>
+              <view class="relationship-list">
+                <view 
+                  wx:for="{{character.relationships}}" 
+                  wx:key="character"
+                  class="relationship-item"
+                >
+                  <text class="rel-character">{{item.character}}</text>
+                  <text class="rel-arrow">→</text>
+                  <text class="rel-desc">{{item.relation}}</text>
+                </view>
+              </view>
+            </view>
+          </block>
+          
+          <!-- 性格六维图 -->
+          <block wx:if="{{character.personalityRadar}}">
+            <view class="section-divider"></view>
+            <view class="info-section">
+              <view class="section-title">性格六维图</view>
+              <view class="radar-section">
+                <canvas type="2d" id="radarCanvas" class="radar-canvas"></canvas>
+                <view class="radar-legends">
+                  <view class="radar-legend-item">
+                    <text class="legend-label">外向度</text>
+                    <text class="legend-value">{{character.personalityRadar.extroversion}}</text>
+                  </view>
+                  <view class="radar-legend-item">
+                    <text class="legend-label">理智度</text>
+                    <text class="legend-value">{{character.personalityRadar.rationality}}</text>
+                  </view>
+                  <view class="radar-legend-item">
+                    <text class="legend-label">善良度</text>
+                    <text class="legend-value">{{character.personalityRadar.kindness}}</text>
+                  </view>
+                  <view class="radar-legend-item">
+                    <text class="legend-label">胆识度</text>
+                    <text class="legend-value">{{character.personalityRadar.courage}}</text>
+                  </view>
+                  <view class="radar-legend-item">
+                    <text class="legend-label">开放度</text>
+                    <text class="legend-value">{{character.personalityRadar.openness}}</text>
+                  </view>
+                  <view class="radar-legend-item">
+                    <text class="legend-label">责任感</text>
+                    <text class="legend-value">{{character.personalityRadar.responsibility}}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </block>
         </view>
       </view>
     </block>

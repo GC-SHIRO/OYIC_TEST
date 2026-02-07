@@ -1,11 +1,8 @@
 {
   "navigationBarTitleText": "预览角色卡",
   "usingComponents": {
-    "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-icon": "tdesign-miniprogram/icon/icon",
     "t-button": "tdesign-miniprogram/button/button",
-    "t-tag": "tdesign-miniprogram/tag/tag",
-    "t-loading": "tdesign-miniprogram/loading/loading",
-    "t-divider": "tdesign-miniprogram/divider/divider"
+    "t-loading": "tdesign-miniprogram/loading/loading"
   }
 }

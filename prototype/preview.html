@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>生成预览</title>
+    <title>预览角色卡</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         * {
@@ -14,41 +14,47 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f5f5f5;
-            height: 100vh;
+            /* 匹配 wxss: linear-gradient(180deg, #f7f8fa 0%, #eef0f3 100%) */
+            background: linear-gradient(180deg, #f7f8fa 0%, #eef0f3 100%);
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
         
-        /* 顶部导航栏 */
+        /* 顶部导航栏 - 匹配 wxss .navbar */
         .navbar {
-            background: white;
+            background: rgba(255, 255, 255, 0.92);
             padding: 44px 16px 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 8px 18px rgba(17, 24, 39, 0.06);
             display: flex;
             align-items: center;
-            justify-content: center;
-            position: relative;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(229, 231, 235, 0.8);
         }
         
         .nav-back {
-            position: absolute;
-            left: 16px;
             width: 32px;
             height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
+            /* 匹配 wxss: background: #f3f4f6 */
+            background: #f3f4f6;
             color: #666;
-            font-size: 20px;
+            font-size: 18px;
             cursor: pointer;
         }
         
         .navbar-title {
             font-size: 18px;
-            font-weight: 600;
-            color: #000;
+            font-weight: 700;
+            /* 匹配 wxss: color: #111827 */
+            color: #111827;
+        }
+
+        .nav-placeholder {
+            width: 32px;
         }
         
         /* 内容区域 */
@@ -64,126 +70,279 @@
             display: none;
         }
         
-        /* 角色卡片预览 */
+        /* 角色卡片预览 - 匹配 wxss .character-preview */
         .character-preview {
-            background: white;
+            background: rgba(255, 255, 255, 0.98);
             border-radius: 20px;
             overflow: hidden;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 9px 20px rgba(17, 24, 39, 0.12);
             margin-bottom: 20px;
+            border: 1px solid rgba(229, 231, 235, 0.9);
         }
         
+        /* 角色头部区域 - 匹配 wxss .preview-header (银色灰渐变) */
         .preview-header {
-            background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+            background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 60%, #cbd5e1 100%);
             padding: 32px 24px;
-            color: white;
+            /* 匹配 wxss: color: #111827 (浅底深字) */
+            color: #111827;
             text-align: center;
         }
         
         .character-name {
             font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 8px;
+            font-weight: 800;
+            margin-bottom: 6px;
         }
         
         .character-subtitle {
             font-size: 14px;
-            opacity: 0.9;
+            /* 匹配 wxss: color: #6b7280 */
+            color: #6b7280;
         }
         
+        /* 卡片主体 - 匹配 wxss .preview-body */
         .preview-body {
             padding: 24px;
         }
         
+        /* 匹配 wxss .info-section */
         .info-section {
-            margin-bottom: 24px;
+            margin-bottom: 8px;
         }
         
         .info-section:last-child {
             margin-bottom: 0;
         }
         
+        /* 匹配 wxss .section-title */
         .section-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: #999;
+            font-size: 12px;
+            font-weight: 700;
+            color: #9ca3af;
             margin-bottom: 8px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
         }
         
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, #e5e7eb 0%, transparent 100%);
+            margin-bottom: 16px;
+        }
+        
+        /* 匹配 wxss .section-content */
         .section-content {
             font-size: 15px;
-            color: #333;
+            color: #111827;
             line-height: 1.6;
         }
-        
-        .tags-container {
+
+        /* 匹配 wxss .info-item / .info-label / .info-value */
+        .info-item {
+            margin-bottom: 4px;
+        }
+
+        .info-label {
+            font-weight: 700;
+            color: #4b5563;
+        }
+
+        .info-value {
+            color: #6b7280;
+        }
+
+        /* 性格标签 - 匹配 wxss 银色灰风格 */
+        .personality-tags {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
         }
         
-        .tag {
-            padding: 6px 12px;
-            background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
-            color: white;
-            border-radius: 16px;
+        .personality-tag {
+            padding: 5px 14px;
+            /* 匹配 wxss .template-option.active 风格: 灰色系 */
+            background: linear-gradient(135deg, #f3f4f6 0%, #d1d5db 100%);
+            color: #111827;
+            border-radius: 20px;
             font-size: 13px;
             font-weight: 500;
+            border: 1px solid #e5e7eb;
         }
         
-        /* 模板选择器 */
-        .template-selector {
-            background: white;
-            border-radius: 16px;
-            padding: 16px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        /* 外观描述 - 属性行 */
+        .appearance-attrs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 14px;
         }
         
-        .template-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 12px;
-        }
-        
-        .template-options {
+        .appearance-attr {
             display: flex;
-            gap: 12px;
-            overflow-x: auto;
+            align-items: center;
+            gap: 8px;
         }
         
-        .template-option {
-            flex-shrink: 0;
-            padding: 8px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
+        .attr-label {
+            font-size: 13px;
+            color: #9ca3af;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        
+        .attr-value {
             font-size: 14px;
-            color: #666;
-            cursor: pointer;
-            transition: all 0.2s;
+            color: #4b5563;
+            font-weight: 500;
+        }
+
+        .attr-color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            border: 1px solid rgba(0,0,0,0.1);
         }
         
-        .template-option.active {
-            border-color: #334155;
-            background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
-            color: white;
+        .appearance-detail {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.7;
+            padding: 12px 14px;
+            background: #f9fafb;
+            border-radius: 12px;
+            /* 匹配银色灰: 使用 #9ca3af 代替深色 */
+            border-left: 3px solid #9ca3af;
+        }
+
+        /* 长文本段落 */
+        .long-text {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.8;
+            white-space: pre-wrap;
         }
         
-        /* 底部操作栏 */
+        /* 关系网 */
+        .relationship-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .relationship-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: #f9fafb;
+            border-radius: 12px;
+        }
+        
+        .rel-character {
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            white-space: nowrap;
+        }
+        
+        .rel-arrow {
+            color: #9ca3af;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        
+        .rel-desc {
+            font-size: 13px;
+            color: #6b7280;
+            flex: 1;
+            min-width: 0;
+        }
+        
+        /* 特殊能力 */
+        .ability-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .ability-item {
+            padding: 12px 14px;
+            background: #f9fafb;
+            border-radius: 12px;
+            border-left: 3px solid #9ca3af;
+        }
+        
+        .ability-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+        
+        .ability-desc {
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+
+        /* 性格六维图 */
+        .radar-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .radar-chart-container {
+            width: 240px;
+            height: 240px;
+            margin-bottom: 16px;
+        }
+
+        .radar-chart-container svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .radar-legends {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px 16px;
+            width: 100%;
+        }
+
+        .radar-legend-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            font-size: 13px;
+        }
+
+        .legend-label {
+            color: #6b7280;
+        }
+
+        .legend-value {
+            font-weight: 700;
+            color: #111827;
+            font-size: 14px;
+        }
+        
+        /* 底部操作栏 - 匹配 wxss .action-bar */
         .action-bar {
             position: fixed;
             bottom: 16px;
             left: 16px;
             right: 16px;
-            background: white;
+            background: rgba(255, 255, 255, 0.96);
             padding: 16px;
             border-radius: 24px;
             display: flex;
             gap: 12px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 8px 16px rgba(17, 24, 39, 0.12);
+            border: 1px solid rgba(229, 231, 235, 0.9);
         }
         
         .btn {
@@ -198,18 +357,20 @@
         }
         
         .btn-secondary {
-            background: #f5f5f5;
-            color: #666;
+            background: #f3f4f6;
+            color: #6b7280;
         }
         
         .btn-secondary:active {
-            background: #e0e0e0;
+            background: #e5e7eb;
         }
         
+        /* 匹配 wxss: .action-bar .t-button--primary 
+           background: linear-gradient(135deg, #9ca3af 0%, #4b5563 100%) */
         .btn-primary {
-            background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+            background: linear-gradient(135deg, #9ca3af 0%, #4b5563 100%);
             color: white;
-            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);
+            box-shadow: 0 4px 12px rgba(75, 85, 99, 0.3);
         }
         
         .btn-primary:active {
@@ -222,73 +383,252 @@
     <div class="navbar">
         <div class="nav-back">←</div>
         <div class="navbar-title">预览角色卡</div>
+        <div class="nav-placeholder"></div>
     </div>
     
     <!-- 内容区域 -->
     <div class="content-container">
-        <!-- 模板选择 -->
-        <div class="template-selector">
-            <div class="template-title">选择模板</div>
-            <div class="template-options">
-                <div class="template-option active">标准模板</div>
-                <div class="template-option">详细模板</div>
-                <div class="template-option">简约模板</div>
-            </div>
-        </div>
-        
         <!-- 角色卡片预览 -->
         <div class="character-preview">
+
+            <!-- ===== 头部：姓名 ===== -->
             <div class="preview-header">
-                <div class="character-name">樱花剑姬</div>
-                <div class="character-subtitle">Sakura Sword Maiden</div>
+                <div class="character-name">丰川祥子</div>
+                <div class="character-subtitle">Togawa Sakiko / Oblivionis</div>
             </div>
             
             <div class="preview-body">
-                <!-- 基本信息 -->
+
+                <!-- ===== 基本信息 ===== -->
                 <div class="info-section">
                     <div class="section-title">基本信息</div>
                     <div class="section-content">
-                        <strong>年龄：</strong> 17岁<br>
-                        <strong>性别：</strong> 女<br>
-                        <strong>身高：</strong> 162cm<br>
-                        <strong>职业：</strong> 剑术师
+                        <div class="info-item"><span class="info-label">姓名：</span><span class="info-value">丰川祥子 (Togawa Sakiko) / Oblivionis</span></div>
+                        <div class="info-item"><span class="info-label">性别：</span><span class="info-value">女</span></div>
+                        <div class="info-item"><span class="info-label">星座：</span><span class="info-value">水瓶座</span></div>
+                        <div class="info-item"><span class="info-label">生日：</span><span class="info-value">2月14日</span></div>
+                        <div class="info-item"><span class="info-label">物种：</span><span class="info-value">人类</span></div>
                     </div>
                 </div>
                 
-                <!-- 外貌特征 -->
+                <div class="section-divider"></div>
+
+                <!-- ===== 性格标签 ===== -->
                 <div class="info-section">
-                    <div class="section-title">外貌特征</div>
-                    <div class="section-content">
-                        粉色长发及腰，浅紫色的温柔眼眸。身穿白色和服，衣袖和裙摆绣有精致的樱花图案。腰间配备樱花形状护手的武士刀，整体气质优雅而坚定。
+                    <div class="section-title">性格标签</div>
+                    <div class="personality-tags">
+                        <span class="personality-tag">自尊高傲</span>
+                        <span class="personality-tag">现实主义</span>
+                        <span class="personality-tag">责任感</span>
+                        <span class="personality-tag">破碎</span>
+                        <span class="personality-tag">伪装</span>
+                        <span class="personality-tag">掌控欲</span>
+                        <span class="personality-tag">前富家千金</span>
                     </div>
                 </div>
                 
-                <!-- 性格特点 -->
+                <div class="section-divider"></div>
+
+                <!-- ===== 外观描述 ===== -->
                 <div class="info-section">
-                    <div class="section-title">性格特点</div>
-                    <div class="section-content">
-                        温柔、善良、内心坚强。平时待人温和有礼，战斗时展现出惊人的意志力。珍惜每一个生命，但在保护重要之人时绝不退缩。
+                    <div class="section-title">外观描述</div>
+                    <div class="appearance-attrs">
+                        <div class="appearance-attr">
+                            <div class="attr-color-dot" style="background: linear-gradient(135deg, #c0d0e8, #e8e8f0);"></div>
+                            <div>
+                                <div class="attr-label">发色</div>
+                                <div class="attr-value">淡蓝银色渐变（月光色）</div>
+                            </div>
+                        </div>
+                        <div class="appearance-attr">
+                            <div class="attr-color-dot" style="background: linear-gradient(135deg, #d4a017, #c48a1a);"></div>
+                            <div>
+                                <div class="attr-label">瞳色</div>
+                                <div class="attr-value">金琥珀色</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="appearance-detail">平日里（羽丘女子学园制服），她留着标志性的姬发式长发，气质优雅高贵，举手投足间流露着良好的教养，给人一种难以接近的"高岭之花"的印象。然而在私下打工或生活窘迫时，会显得疲惫且朴素。<br><br>在Ave Mujica的舞台上化身为"Oblivionis"时，她身着繁复华丽的哥特风格演出服，佩戴遮住半张脸的精致假面，如同掌控命运的女神，散发着一种甚至带有攻击性的压倒性魅力。</div>
                     </div>
                 </div>
                 
-                <!-- 背景故事 -->
+                <div class="section-divider"></div>
+
+                <!-- ===== 性格描述 ===== -->
                 <div class="info-section">
-                    <div class="section-title">背景故事</div>
-                    <div class="section-content">
-                        出生于樱花盛开的古都守护者家族，自幼跟随父亲学习家传剑术。在一次妖魔袭击事件中展现出非凡的天赋，继承了家族的樱花剑，从此踏上守护古都和平的道路。
-                    </div>
+                    <div class="section-title">性格描述</div>
+                    <div class="long-text">曾经的她天真烂漫、温柔且充满理想，是CRYCHIC的组建者和核心。但在经历了家庭破产、父亲酗酒等一系列残酷变故后，她的性格发生了剧变。
+
+现在的祥子是一个极度的现实主义者。她被迫抛弃了过去的软弱和天真，用冷酷和理智将自己武装起来。她自尊心极强，不愿向昔日好友展露自己的落魄，因此选择用决绝甚至伤人的方式切断了与过去的联系。她背负着沉重的家庭责任，为了生存和金钱，她展现出了惊人的行动力和掌控欲，将Ave Mujica作为纯粹的商业工具来运营。尽管外表冷漠毒舌，但内心深处仍保留着对音乐的执着和对他人的某种扭曲的保护欲（通过推开她们来保护她们不被自己的泥潭拖累）。</div>
                 </div>
                 
-                <!-- 特殊能力 -->
+                <div class="section-divider"></div>
+
+                <!-- ===== 角色背景 ===== -->
+                <div class="info-section">
+                    <div class="section-title">角色背景</div>
+                    <div class="long-text">原本身出生于显赫的丰川家族，居住在豪华的欧式宅邸中，拥有无忧无虑的童年，并与青梅竹马若叶睦关系亲密。初中时期，凭着对音乐的热爱组建了乐队CRYCHIC，是高松灯等人的引路人。
+
+然而，父亲的商业失败导致家庭一夜之间崩塌，不仅失去了豪宅，还需要照顾酗酒颓废的父亲，生活跌入谷底。巨大的落差迫使她不得不在此刻做出选择：为了维护仅存的自尊并承担起生存的重担，她退出了CRYCHIC，并在之后以近乎冷血的手段招募了包括初华、睦在内的成员，组建了风格完全不同的商业乐队Ave Mujica，誓要通过音乐在这个残酷的世界中杀出一条血路。</div>
+                </div>
+                
+                <div class="section-divider"></div>
+
+                <!-- ===== 故事线 ===== -->
+                <div class="info-section">
+                    <div class="section-title">故事线</div>
+                    <div class="long-text">从《BanG Dream! It's MyGO!!!!!》的解散事件开始，祥子在雨中决绝地宣告CRYCHIC的终结，随后转学至羽丘女子学园。她一边隐藏着自己贫困潦倒的真实生活（身兼多职打工），一边在暗中策划新的乐队。她看中了青梅竹马三角初华（Sumimi）的人气和实力，利用若叶睦的愧疚与顺从，并招募了技术高超的海铃与喵梦。
+
+在《Ave Mujica》篇章中，她作为键盘手"Oblivionis"和乐队的实际领导者，戴上面具，试图将世界变为她的舞台，誓要将曾经失去的一切夺回来。</div>
+                </div>
+                
+                <div class="section-divider"></div>
+
+                <!-- ===== 特殊能力 ===== -->
                 <div class="info-section">
                     <div class="section-title">特殊能力</div>
-                    <div class="tags-container">
-                        <div class="tag">樱花剑术</div>
-                        <div class="tag">灵力感知</div>
-                        <div class="tag">结界术</div>
-                        <div class="tag">瞬步</div>
+                    <div class="ability-list">
+                        <div class="ability-item">
+                            <div class="ability-name">绝对音感与作曲才华</div>
+                            <div class="ability-desc">拥有极高的音乐天赋，能够创作出风格迥异的高质量乐曲（从CRYCHIC的抒情曲到Ave Mujica的金属风）。</div>
+                        </div>
+                        <div class="ability-item">
+                            <div class="ability-name">洞察与操纵</div>
+                            <div class="ability-desc">能够敏锐地看穿他人的弱点和渴望，并利用这些来达成自己的目的（如招募喵梦时的谈判）。</div>
+                        </div>
+                        <div class="ability-item">
+                            <div class="ability-name">极强的抗压能力</div>
+                            <div class="ability-desc">在家庭破碎的极端压力下依然能维持学业和乐队运营，展现出超乎常人的精神韧性。</div>
+                        </div>
                     </div>
                 </div>
+                
+                <div class="section-divider"></div>
+
+                <!-- ===== 关系网 ===== -->
+                <div class="info-section">
+                    <div class="section-title">关系网</div>
+                    <div class="relationship-list">
+                        <div class="relationship-item">
+                            <span class="rel-character">高松灯</span>
+                            <span class="rel-arrow">→</span>
+                            <span class="rel-desc">曾经的救赎对象 / 现已抛弃的过去</span>
+                        </div>
+                        <div class="relationship-item">
+                            <span class="rel-character">若叶睦</span>
+                            <span class="rel-arrow">→</span>
+                            <span class="rel-desc">青梅竹马 / 共犯 / 工具人</span>
+                        </div>
+                        <div class="relationship-item">
+                            <span class="rel-character">长崎素世</span>
+                            <span class="rel-arrow">→</span>
+                            <span class="rel-desc">纠缠不清的旧友 / 厌恶的对象</span>
+                        </div>
+                        <div class="relationship-item">
+                            <span class="rel-character">三角初华</span>
+                            <span class="rel-arrow">→</span>
+                            <span class="rel-desc">商业伙伴 / 相互利用的盟友</span>
+                        </div>
+                        <div class="relationship-item">
+                            <span class="rel-character">八幡海铃</span>
+                            <span class="rel-arrow">→</span>
+                            <span class="rel-desc">雇佣关系 / 值得信赖的战力</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section-divider"></div>
+
+                <!-- ===== 性格六维图 ===== -->
+                <div class="info-section">
+                    <div class="section-title">性格六维图</div>
+                    <div class="radar-section">
+                        <div class="radar-chart-container">
+                            <svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="radarFill" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#9ca3af;stop-opacity:0.3" />
+                                        <stop offset="100%" style="stop-color:#4b5563;stop-opacity:0.15" />
+                                    </linearGradient>
+                                    <linearGradient id="radarStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#9ca3af;stop-opacity:1" />
+                                        <stop offset="100%" style="stop-color:#4b5563;stop-opacity:1" />
+                                    </linearGradient>
+                                </defs>
+                                <!-- 背景网格 - 5层 -->
+                                <g stroke="#e5e7eb" fill="none" stroke-width="0.8">
+                                    <polygon points="150,130 167,140 167,160 150,170 133,160 133,140" />
+                                    <polygon points="150,110 184,130 184,170 150,190 116,170 116,130" />
+                                    <polygon points="150,90 202,120 202,180 150,210 98,180 98,120" />
+                                    <polygon points="150,70 219,110 219,190 150,230 81,190 81,110" />
+                                    <polygon points="150,50 237,100 237,200 150,250 63,200 63,100" />
+                                </g>
+                                <!-- 轴线 -->
+                                <g stroke="#d1d5db" stroke-width="0.6">
+                                    <line x1="150" y1="150" x2="150" y2="50" />
+                                    <line x1="150" y1="150" x2="237" y2="100" />
+                                    <line x1="150" y1="150" x2="237" y2="200" />
+                                    <line x1="150" y1="150" x2="150" y2="250" />
+                                    <line x1="150" y1="150" x2="63" y2="200" />
+                                    <line x1="150" y1="150" x2="63" y2="100" />
+                                </g>
+                                <!-- 数据区域 -->
+                                <polygon 
+                                    points="150,90 232,103 176,165 150,240 107,175 72,105"
+                                    fill="url(#radarFill)" 
+                                    stroke="url(#radarStroke)" 
+                                    stroke-width="2"
+                                />
+                                <!-- 数据点 -->
+                                <g fill="#4b5563">
+                                    <circle cx="150" cy="90" r="4" />
+                                    <circle cx="232" cy="103" r="4" />
+                                    <circle cx="176" cy="165" r="4" />
+                                    <circle cx="150" cy="240" r="4" />
+                                    <circle cx="107" cy="175" r="4" />
+                                    <circle cx="72" cy="105" r="4" />
+                                </g>
+                                <!-- 标签 -->
+                                <g font-size="12" fill="#4b5563" text-anchor="middle" font-weight="500">
+                                    <text x="150" y="40">外向度</text>
+                                    <text x="248" y="96">理智度</text>
+                                    <text x="248" y="210">善良度</text>
+                                    <text x="150" y="268">胆识度</text>
+                                    <text x="52" y="210">开放度</text>
+                                    <text x="52" y="96">责任感</text>
+                                </g>
+                            </svg>
+                        </div>
+                        <div class="radar-legends">
+                            <div class="radar-legend-item">
+                                <span class="legend-label">外向度</span>
+                                <span class="legend-value">0.6</span>
+                            </div>
+                            <div class="radar-legend-item">
+                                <span class="legend-label">理智度</span>
+                                <span class="legend-value">0.95</span>
+                            </div>
+                            <div class="radar-legend-item">
+                                <span class="legend-label">善良度</span>
+                                <span class="legend-value">0.3</span>
+                            </div>
+                            <div class="radar-legend-item">
+                                <span class="legend-label">胆识度</span>
+                                <span class="legend-value">0.9</span>
+                            </div>
+                            <div class="radar-legend-item">
+                                <span class="legend-label">开放度</span>
+                                <span class="legend-value">0.5</span>
+                            </div>
+                            <div class="radar-legend-item">
+                                <span class="legend-label">责任感</span>
+                                <span class="legend-value">0.9</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>

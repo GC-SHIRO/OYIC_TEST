@@ -1,27 +1,55 @@
 // 预览角色卡页面
-interface ICharacterDetail {
-  id: string;
-  name: string;
-  subtitle: string;
-  age: string;
-  gender: string;
-  height: string;
-  occupation: string;
-  appearance: string;
-  personality: string;
-  backstory: string;
-  abilities: string[];
+
+// 外观描述
+interface IAppearance {
+  hairColor: string;       // 发色
+  eyeColor: string;        // 瞳色
+  detail: string;          // 详细描述
 }
 
-interface ITemplate {
-  id: string;
+// 特殊能力
+interface IAbility {
   name: string;
+  description: string;
+}
+
+// 关系网
+interface IRelationship {
+  character: string;       // 关联角色
+  relation: string;        // 关系描述
+}
+
+// 性格六维图
+interface IPersonalityRadar {
+  extroversion: number;    // 外向度
+  rationality: number;     // 理智度
+  kindness: number;        // 善良度
+  courage: number;         // 胆识度
+  openness: number;        // 开放度
+  responsibility: number;  // 责任感
+}
+
+interface ICharacterDetail {
+  id: string;
+  name: string;            // 角色姓名
+  introduction: string;    // 角色简介（一两句话概括）
+  gender: string;          // 性别
+  constellation: string;   // 星座
+  birthday: string;        // 生日
+  species: string;         // 物种
+  personalityTags: string[];       // 性格标签
+  appearance: IAppearance;         // 外观描述
+  personality: string;             // 性格描述
+  backstory: string;               // 角色背景
+  storyline: string;               // 故事线（可选）
+  abilities: IAbility[];           // 特殊能力（可选）
+  relationships: IRelationship[];  // 关系网（可选）
+  personalityRadar: IPersonalityRadar;  // 性格六维图
 }
 
 // 生成请求接口定义
 interface IGenerateRequest {
   characterId: string;
-  templateId: string;
   conversationHistory: any[];
 }
 
@@ -36,12 +64,6 @@ Page({
     characterId: '',
     readonly: false,
     loading: true,
-    selectedTemplate: 'standard',
-    templates: [
-      { id: 'standard', name: '标准模板' },
-      { id: 'detailed', name: '详细模板' },
-      { id: 'minimal', name: '简约模板' }
-    ] as ITemplate[],
     character: {} as ICharacterDetail
   },
 
@@ -67,12 +89,14 @@ Page({
     
     if (character) {
       this.setData({ character, loading: false });
+      this.drawRadarChart();
     } else {
-      // 如果没有找到，使用示例数据
+      // 使用示例数据
       this.setData({
         character: this.getMockCharacter(),
         loading: false
       });
+      this.drawRadarChart();
     }
   },
 
@@ -87,7 +111,6 @@ Page({
       // 调用生成API
       const response = await this.callGenerateAPI({
         characterId,
-        templateId: this.data.selectedTemplate,
         conversationHistory: conversation
       });
 
@@ -102,11 +125,14 @@ Page({
     } catch (error) {
       console.error('Generate character error:', error);
       
-      // 使用模拟数据
+      // 模拟 API 响应
       this.setData({
         character: this.getMockCharacter(),
         loading: false
       });
+
+      // 绘制雷达图
+      this.drawRadarChart();
     }
   },
 
@@ -139,28 +165,161 @@ Page({
     });
   },
 
+  // 绘制性格六维雷达图
+  drawRadarChart() {
+    const radar = this.data.character.personalityRadar;
+    if (!radar) return;
+
+    const query = this.createSelectorQuery();
+    query.select('#radarCanvas')
+      .fields({ node: true, size: true })
+      .exec((res: any) => {
+        if (!res[0]) return;
+
+        const canvas = res[0].node;
+        const ctx = canvas.getContext('2d');
+        const dpr = wx.getSystemInfoSync().pixelRatio;
+        canvas.width = res[0].width * dpr;
+        canvas.height = res[0].height * dpr;
+        ctx.scale(dpr, dpr);
+
+        const w = res[0].width;
+        const h = res[0].height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const maxR = Math.min(cx, cy) - 30;
+        const levels = 5;
+        const labels = ['外向度', '理智度', '善良度', '胆识度', '开放度', '责任感'];
+        const values = [
+          radar.extroversion, radar.rationality, radar.kindness,
+          radar.courage, radar.openness, radar.responsibility
+        ];
+        const sides = 6;
+        const angleStep = (Math.PI * 2) / sides;
+        const startAngle = -Math.PI / 2;
+
+        // 获取顶点坐标
+        const getPoint = (i: number, r: number) => ({
+          x: cx + r * Math.cos(startAngle + i * angleStep),
+          y: cy + r * Math.sin(startAngle + i * angleStep)
+        });
+
+        // 绘制背景网格
+        for (let lv = 1; lv <= levels; lv++) {
+          const r = (maxR / levels) * lv;
+          ctx.beginPath();
+          for (let i = 0; i < sides; i++) {
+            const p = getPoint(i, r);
+            if (i === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+          }
+          ctx.closePath();
+          ctx.strokeStyle = '#e5e7eb';
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+        }
+
+        // 绘制轴线
+        for (let i = 0; i < sides; i++) {
+          const p = getPoint(i, maxR);
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(p.x, p.y);
+          ctx.strokeStyle = '#d1d5db';
+          ctx.lineWidth = 0.6;
+          ctx.stroke();
+        }
+
+        // 绘制数据区域
+        ctx.beginPath();
+        for (let i = 0; i < sides; i++) {
+          const r = maxR * values[i];
+          const p = getPoint(i, r);
+          if (i === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+        ctx.closePath();
+
+        // 渐变填充
+        const gradient = ctx.createLinearGradient(cx - maxR, cy - maxR, cx + maxR, cy + maxR);
+        gradient.addColorStop(0, 'rgba(156, 163, 175, 0.3)');
+        gradient.addColorStop(1, 'rgba(75, 85, 99, 0.15)');
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // 描边
+        const strokeGrad = ctx.createLinearGradient(cx - maxR, cy - maxR, cx + maxR, cy + maxR);
+        strokeGrad.addColorStop(0, '#9ca3af');
+        strokeGrad.addColorStop(1, '#4b5563');
+        ctx.strokeStyle = strokeGrad;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 绘制数据点
+        for (let i = 0; i < sides; i++) {
+          const r = maxR * values[i];
+          const p = getPoint(i, r);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#4b5563';
+          ctx.fill();
+        }
+
+        // 绘制标签
+        ctx.font = '500 11px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillStyle = '#4b5563';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i < sides; i++) {
+          const p = getPoint(i, maxR + 18);
+          ctx.fillText(labels[i], p.x, p.y);
+        }
+      });
+  },
+
   // 获取模拟角色数据
   getMockCharacter(): ICharacterDetail {
     return {
       id: 'mock_1',
-      name: '樱花剑姬',
-      subtitle: 'Sakura Sword Maiden',
-      age: '17岁',
+      name: '丰川祥子',
+      introduction: '原属丰川豪门的贵族少女，因家庭崩溃而蓬头垢面，以冷酷与理智将自己武装起来，带领Ave Mujica在残酷的世界中杀出一条血路。',
       gender: '女',
-      height: '162cm',
-      occupation: '剑术师',
-      appearance: '粉色长发及腰，浅紫色的温柔眼眸。身穿白色和服，衣袖和裙摆绣有精致的樱花图案。腰间配备樱花形状护手的武士刀，整体气质优雅而坚定。',
-      personality: '温柔、善良、内心坚强。平时待人温和有礼，战斗时展现出惊人的意志力。珍惜每一个生命，但在保护重要之人时绝不退缩。',
-      backstory: '出生于樱花盛开的古都守护者家族，自幼跟随父亲学习家传剑术。在一次妖魔袭击事件中展现出非凡的天赋，继承了家族的樱花剑，从此踏上守护古都和平的道路。',
-      abilities: ['樱花剑术', '灵力感知', '结界术', '瞬步']
+      constellation: '水瓶座',
+      birthday: '2月14日',
+      species: '人类',
+      personalityTags: ['自尊高傲', '现实主义', '责任感', '破碎', '伪装', '掌控欲', '前富家千金'],
+      appearance: {
+        hairColor: '淡蓝银色渐变（月光色）',
+        eyeColor: '金琥珀色',
+        detail: '平日里（羽丘女子学园制服），她留着标志性的姬发式长发，气质优雅高贵，举手投足间流露着良好的教养，给人一种难以接近的"高岭之花"的印象。然而在私下打工或生活窘迫时，会显得疲惫且朴素。\n\n在Ave Mujica的舞台上化身为"Oblivionis"时，她身着繁复华丽的哥特风格演出服，佩戴遮住半张脸的精致假面，如同掌控命运的女神，散发着一种甚至带有攻击性的压倒性魅力。'
+      },
+      personality: '曾经的她天真烂漫、温柔且充满理想，是CRYCHIC的组建者和核心。但在经历了家庭破产、父亲酗酒等一系列残酷变故后，她的性格发生了剧变。\n\n现在的祥子是一个极度的现实主义者。她被迫抛弃了过去的软弱和天真，用冷酷和理智将自己武装起来。她自尊心极强，不愿向昔日好友展露自己的落魄，因此选择用决绝甚至伤人的方式切断了与过去的联系。',
+      backstory: '原本出生于显赫的丰川家族，居住在豪华的欧式宅邸中，拥有无忧无虑的童年，并与青梅竹马若叶睦关系亲密。初中时期，凭着对音乐的热爱组建了乐队CRYCHIC，是高松灯等人的引路人。\n\n然而，父亲的商业失败导致家庭一夜之间崩塌，不仅失去了豪宅，还需要照顾酗酒颓废的父亲，生活跌入谷底。',
+      storyline: '从《BanG Dream! It\'s MyGO!!!!!》的解散事件开始，祥子在雨中决绝地宣告CRYCHIC的终结，随后转学至羽丘女子学园。\n\n在《Ave Mujica》篇章中，她作为键盘手"Oblivionis"和乐队的实际领导者，戴上面具，试图将世界变为她的舞台，誓要将曾经失去的一切夺回来。',
+      abilities: [
+        { name: '绝对音感与作曲才华', description: '拥有极高的音乐天赋，能够创作出风格迥异的高质量乐曲。' },
+        { name: '洞察与操纵', description: '能够敏锐地看穿他人的弱点和渴望，并利用这些来达成自己的目的。' },
+        { name: '极强的抗压能力', description: '在家庭破碎的极端压力下依然能维持学业和乐队运营，展现出超乎常人的精神韧性。' }
+      ],
+      relationships: [
+        { character: '高松灯', relation: '曾经的救赎对象 / 现已抛弃的过去' },
+        { character: '若叶睦', relation: '青梅竹马 / 共犯 / 工具人' },
+        { character: '长崎素世', relation: '纠缠不清的旧友 / 厌恶的对象' },
+        { character: '三角初华', relation: '商业伙伴 / 相互利用的盟友' },
+        { character: '八幡海铃', relation: '雇佣关系 / 值得信赖的战力' }
+      ],
+      personalityRadar: {
+        extroversion: 0.6,
+        rationality: 0.95,
+        kindness: 0.3,
+        courage: 0.9,
+        openness: 0.5,
+        responsibility: 0.9
+      }
     };
   },
 
-  // 选择模板
-  onSelectTemplate(e: WechatMiniprogram.TouchEvent) {
-    const templateId = e.currentTarget.dataset.id;
-    this.setData({ selectedTemplate: templateId });
-  },
+  // 选择模板（已移除）
 
   // 返回
   onBack() {

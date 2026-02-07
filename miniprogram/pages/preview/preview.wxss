@@ -63,46 +63,6 @@
   color: #6b7280;
 }
 
-/* 模板选择器 */
-.template-selector {
-  background: rgba(255, 255, 255, 0.96);
-  border-radius: 32rpx;
-  padding: 32rpx;
-  margin-bottom: 40rpx;
-  box-shadow: 0 14rpx 30rpx rgba(17, 24, 39, 0.08);
-  border: 2rpx solid rgba(229, 231, 235, 0.9);
-}
-
-.template-title {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #111827;
-  margin-bottom: 24rpx;
-}
-
-.template-options {
-  display: flex;
-  white-space: nowrap;
-}
-
-.template-option {
-  display: inline-block;
-  padding: 16rpx 32rpx;
-  border: 2rpx solid #e5e7eb;
-  border-radius: 24rpx;
-  font-size: 28rpx;
-  color: #6b7280;
-  margin-right: 24rpx;
-  transition: all 0.2s;
-  background: #f9fafb;
-}
-
-.template-option.active {
-  border-color: #6b7280;
-  background: linear-gradient(135deg, #f3f4f6 0%, #d1d5db 100%);
-  color: #111827;
-}
-
 /* 角色卡片预览 */
 .character-preview {
   background: rgba(255, 255, 255, 0.98);
@@ -121,7 +81,7 @@
 }
 
 .character-name {
-  font-size: 48rpx;
+  font-size: 44rpx;
   font-weight: 800;
   margin-bottom: 12rpx;
 }
@@ -129,6 +89,13 @@
 .character-subtitle {
   font-size: 28rpx;
   color: #6b7280;
+}
+
+.character-intro {
+  font-size: 24rpx;
+  color: #6b7280;
+  line-height: 1.6;
+  margin-top: 8rpx;
 }
 
 .preview-body {
@@ -140,16 +107,16 @@
 }
 
 .section-title {
-  font-size: 24rpx;
+  font-size: 22rpx;
   font-weight: 700;
   color: #9ca3af;
-  margin-bottom: 16rpx;
+  margin-bottom: 14rpx;
   text-transform: uppercase;
   letter-spacing: 2rpx;
 }
 
 .section-content {
-  font-size: 30rpx;
+  font-size: 28rpx;
   color: #111827;
   line-height: 1.6;
 }
@@ -167,20 +134,198 @@
   color: #6b7280;
 }
 
-.section-text {
-  display: block;
-  white-space: pre-wrap;
+/* 分割线 */
+.section-divider {
+  height: 2rpx;
+  background: linear-gradient(90deg, #e5e7eb 0%, transparent 100%);
+  margin-bottom: 32rpx;
 }
 
-/* 能力标签 */
-.tags-container {
+/* 性格标签 */
+.personality-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 16rpx;
 }
 
-.ability-tag {
-  margin-right: 0 !important;
+.personality-tag {
+  padding: 10rpx 28rpx;
+  background: linear-gradient(135deg, #f3f4f6 0%, #d1d5db 100%);
+  color: #111827;
+  border-radius: 40rpx;
+  font-size: 26rpx;
+  font-weight: 500;
+  border: 2rpx solid #e5e7eb;
+}
+
+/* 外观描述 */
+.appearance-attrs {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-bottom: 28rpx;
+}
+
+.appearance-attr {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.attr-color-dot {
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2rpx solid rgba(0, 0, 0, 0.1);
+}
+
+.hair-dot {
+  background: linear-gradient(135deg, #c0d0e8, #e8e8f0);
+}
+
+.eye-dot {
+  background: linear-gradient(135deg, #d4a017, #c48a1a);
+}
+
+.attr-label {
+  font-size: 26rpx;
+  color: #9ca3af;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.attr-value {
+  font-size: 28rpx;
+  color: #4b5563;
+  font-weight: 500;
+}
+
+.appearance-detail-wrap {
+  margin-top: 0;
+}
+
+.appearance-detail {
+  font-size: 26rpx;
+  color: #4b5563;
+  line-height: 1.7;
+  padding: 24rpx 28rpx;
+  background: #f9fafb;
+  border-radius: 24rpx;
+  border-left: 6rpx solid #9ca3af;
+  display: block;
+}
+
+/* 长文本段落 */
+.long-text {
+  font-size: 26rpx;
+  color: #4b5563;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  display: block;
+}
+
+/* 特殊能力 */
+.ability-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.ability-item {
+  padding: 24rpx 28rpx;
+  background: #f9fafb;
+  border-radius: 24rpx;
+  border-left: 6rpx solid #9ca3af;
+}
+
+.ability-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 8rpx;
+  display: block;
+}
+
+.ability-desc {
+  font-size: 26rpx;
+  color: #6b7280;
+  line-height: 1.6;
+  display: block;
+}
+
+/* 关系网 */
+.relationship-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.relationship-item {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 20rpx 28rpx;
+  background: #f9fafb;
+  border-radius: 24rpx;
+}
+
+.rel-character {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.rel-arrow {
+  color: #9ca3af;
+  font-size: 32rpx;
+  flex-shrink: 0;
+}
+
+.rel-desc {
+  font-size: 26rpx;
+  color: #6b7280;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 性格六维图 */
+.radar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.radar-canvas {
+  width: 400rpx;
+  height: 400rpx;
+  margin-bottom: 0;
+}
+
+.radar-legends {
+  display: none;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16rpx 32rpx;
+  width: 100%;
+}
+
+.radar-legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  font-size: 26rpx;
+}
+
+.legend-label {
+  color: #6b7280;
+}
+
+.legend-value {
+  font-weight: 700;
+  color: #111827;
+  font-size: 28rpx;
 }
 
 /* 底部操作栏 */
