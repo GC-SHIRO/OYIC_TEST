@@ -1,27 +1,20 @@
 /**
  * 本地存储服务
- * 管理角色、对话历史等数据的本地存储
+ * 管理角色卡、对话历史等数据的本地存储
+ * 
+ * 角色卡数据结构参考 docs/character_card_design.md
+ * 类型定义统一从 types/character.ts 导入
  */
 
-// 角色信息类型
-export interface ICharacter {
-  id: string;
-  name: string;
-  subtitle?: string;
-  description: string;
-  image: string;
-  status: 'completed' | 'incomplete';
-  age?: string;
-  gender?: string;
-  height?: string;
-  occupation?: string;
-  appearance?: string;
-  personality?: string;
-  backstory?: string;
-  abilities?: string[];
-  createdAt: number;
-  updatedAt: number;
-}
+import type {
+  ICharacterCard,
+  ICharacterListItem,
+  ICharacterInfo,
+} from '../types/character';
+import { toListItem } from '../types/character';
+
+// 重新导出类型供其他模块使用
+export type { ICharacterCard, ICharacterListItem, ICharacterInfo };
 
 // 对话消息类型
 export interface IMessage {
@@ -40,6 +33,8 @@ const STORAGE_KEYS = {
   USER_INFO: 'userInfo'
 };
 
+// ========== 角色卡 CRUD ==========
+
 /**
  * 获取所有角色ID列表
  */
@@ -48,37 +43,39 @@ export function getCharacterList(): string[] {
 }
 
 /**
- * 获取角色详情
+ * 获取角色卡详情
  */
-export function getCharacter(characterId: string): ICharacter | null {
+export function getCharacter(characterId: string): ICharacterCard | null {
   return wx.getStorageSync(`${STORAGE_KEYS.CHARACTER_PREFIX}${characterId}`) || null;
 }
 
 /**
- * 保存角色
+ * 保存角色卡
  */
-export function saveCharacter(character: ICharacter): void {
-  // 保存角色信息
-  wx.setStorageSync(`${STORAGE_KEYS.CHARACTER_PREFIX}${character.id}`, character);
-  
+export function saveCharacter(card: ICharacterCard): void {
+  card.updatedAt = Date.now();
+
+  // 保存角色卡信息
+  wx.setStorageSync(`${STORAGE_KEYS.CHARACTER_PREFIX}${card.id}`, card);
+
   // 更新角色列表
   const list = getCharacterList();
-  if (!list.includes(character.id)) {
-    list.unshift(character.id);
+  if (!list.includes(card.id)) {
+    list.unshift(card.id);
     wx.setStorageSync(STORAGE_KEYS.CHARACTER_LIST, list);
   }
 }
 
 /**
- * 删除角色
+ * 删除角色卡
  */
 export function deleteCharacter(characterId: string): void {
-  // 删除角色信息
+  // 删除角色卡信息
   wx.removeStorageSync(`${STORAGE_KEYS.CHARACTER_PREFIX}${characterId}`);
-  
+
   // 删除对话历史
   wx.removeStorageSync(`${STORAGE_KEYS.CONVERSATION_PREFIX}${characterId}`);
-  
+
   // 更新角色列表
   const list = getCharacterList();
   const index = list.indexOf(characterId);
@@ -89,24 +86,37 @@ export function deleteCharacter(characterId: string): void {
 }
 
 /**
- * 获取所有已完成的角色
+ * 获取所有已完成的角色卡
  */
-export function getCompletedCharacters(): ICharacter[] {
+export function getCompletedCharacters(): ICharacterCard[] {
   const list = getCharacterList();
   return list
     .map(id => getCharacter(id))
-    .filter((c): c is ICharacter => c !== null && c.status === 'completed');
+    .filter((c): c is ICharacterCard => c !== null && c.status === 'completed');
 }
 
 /**
- * 获取所有未完成的角色
+ * 获取所有未完成的角色卡
  */
-export function getIncompleteCharacters(): ICharacter[] {
+export function getIncompleteCharacters(): ICharacterCard[] {
   const list = getCharacterList();
   return list
     .map(id => getCharacter(id))
-    .filter((c): c is ICharacter => c !== null && c.status === 'incomplete');
+    .filter((c): c is ICharacterCard => c !== null && c.status === 'incomplete');
 }
+
+/**
+ * 获取角色卡列表展示数据
+ */
+export function getCharacterListItems(): ICharacterListItem[] {
+  const list = getCharacterList();
+  return list
+    .map(id => getCharacter(id))
+    .filter((c): c is ICharacterCard => c !== null)
+    .map(toListItem);
+}
+
+// ========== 对话历史 ==========
 
 /**
  * 获取对话历史
@@ -121,6 +131,8 @@ export function getConversation(characterId: string): IMessage[] {
 export function saveConversation(characterId: string, messages: IMessage[]): void {
   wx.setStorageSync(`${STORAGE_KEYS.CONVERSATION_PREFIX}${characterId}`, messages);
 }
+
+// ========== 工具函数 ==========
 
 /**
  * 清空所有数据（慎用）

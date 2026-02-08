@@ -161,7 +161,7 @@
           </block>
           
           <!-- 性格六维图 -->
-          <block wx:if="{{character.personalityRadar}}">
+          <block wx:if="{{character.radar}}">
             <view class="section-divider"></view>
             <view class="info-section">
               <view class="section-title">性格六维图</view>
@@ -170,27 +170,27 @@
                 <view class="radar-legends">
                   <view class="radar-legend-item">
                     <text class="legend-label">外向度</text>
-                    <text class="legend-value">{{character.personalityRadar.extroversion}}</text>
+                    <text class="legend-value">{{character.radar.extroversion}}</text>
                   </view>
                   <view class="radar-legend-item">
                     <text class="legend-label">理智度</text>
-                    <text class="legend-value">{{character.personalityRadar.rationality}}</text>
+                    <text class="legend-value">{{character.radar.rationality}}</text>
                   </view>
                   <view class="radar-legend-item">
                     <text class="legend-label">善良度</text>
-                    <text class="legend-value">{{character.personalityRadar.kindness}}</text>
+                    <text class="legend-value">{{character.radar.kindness}}</text>
                   </view>
                   <view class="radar-legend-item">
                     <text class="legend-label">胆识度</text>
-                    <text class="legend-value">{{character.personalityRadar.courage}}</text>
+                    <text class="legend-value">{{character.radar.courage}}</text>
                   </view>
                   <view class="radar-legend-item">
                     <text class="legend-label">开放度</text>
-                    <text class="legend-value">{{character.personalityRadar.openness}}</text>
+                    <text class="legend-value">{{character.radar.openness}}</text>
                   </view>
                   <view class="radar-legend-item">
                     <text class="legend-label">责任感</text>
-                    <text class="legend-value">{{character.personalityRadar.responsibility}}</text>
+                    <text class="legend-value">{{character.radar.responsibility}}</text>
                   </view>
                 </view>
               </view>

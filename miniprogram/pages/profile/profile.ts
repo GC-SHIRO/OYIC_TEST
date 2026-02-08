@@ -1,5 +1,7 @@
 // 我的 - 用户中心页面（基于云开发登录）
 import { cloudLogin, updateNickname, updateSignature, uploadAvatar, logout, isLoggedIn, getLocalUserInfo } from '../../services/user';
+import { getCompletedCharacters } from '../../services/storage';
+import type { ICharacterCard } from '../../types/character';
 
 interface IWork {
   id: string;
@@ -356,20 +358,13 @@ Page({
   // ========== 作品列表 ==========
 
   loadWorks() {
-    const characterList = wx.getStorageSync('characterList') || [];
-    const works: IWork[] = [];
-
-    characterList.forEach((id: string) => {
-      const character = wx.getStorageSync(`character_${id}`);
-      if (character && character.status === 'completed') {
-        works.push({
-          id,
-          name: character.name,
-          image: character.image || '/assets/images/character_placeholder.png',
-          date: this.formatDate(character.createdAt || Date.now()),
-        });
-      }
-    });
+    const completedCards = getCompletedCharacters();
+    const works: IWork[] = completedCards.map((card: ICharacterCard) => ({
+      id: card.id,
+      name: card.characterInfo.name,
+      image: card.avatar || '/assets/images/character_placeholder.png',
+      date: this.formatDate(card.createdAt || Date.now()),
+    }));
 
     if (works.length === 0) {
       works.push(

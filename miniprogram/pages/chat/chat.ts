@@ -1,11 +1,6 @@
 // 创建角色 - AI对话页面
-interface IMessage {
-  id: string;
-  role: 'ai' | 'user';
-  content: string;
-  images?: string[];
-  timestamp: number;
-}
+import type { IMessage } from '../../services/storage';
+import { saveConversation as storageSaveConversation } from '../../services/storage';
 
 // Agent API 接口定义
 interface IAgentResponse {
@@ -265,7 +260,7 @@ Page({
   saveConversation() {
     const { messages, characterId } = this.data;
     const id = characterId || `new_${Date.now()}`;
-    wx.setStorageSync(`conversation_${id}`, messages);
+    storageSaveConversation(id, messages);
     
     if (!characterId) {
       this.setData({ characterId: id });

@@ -3,6 +3,8 @@
  * 用于接入外部的 Coze API 或其他 AI Agent 服务
  */
 
+import type { ICharacterInfo } from '../types/character';
+
 // API 配置
 const API_CONFIG = {
   // Coze API 端点，请替换为实际的 API 地址
@@ -31,25 +33,14 @@ export interface IAgentResponse {
 // 角色生成请求
 export interface IGenerateRequest {
   characterId: string;
-  templateId: string;
+  conversationId?: string;
   conversationHistory: IChatMessage[];
 }
 
-// 角色生成响应
+// 角色生成响应 — data 为完整的角色具体信息
 export interface IGenerateResponse {
   success: boolean;
-  data?: {
-    name: string;
-    subtitle: string;
-    age: string;
-    gender: string;
-    height: string;
-    occupation: string;
-    appearance: string;
-    personality: string;
-    backstory: string;
-    abilities: string[];
-  };
+  data?: ICharacterInfo;
   error?: string;
 }
 
@@ -118,17 +109,21 @@ export async function generateCharacterCard(
 ): Promise<IGenerateResponse> {
   try {
     // 构建生成提示
-    const generatePrompt = `请根据以上对话内容，生成一个完整的角色信息卡，使用 ${request.templateId} 模板格式，包含以下字段：
-    - 角色名称
-    - 英文名/副标题
-    - 年龄
-    - 性别
-    - 身高
-    - 职业
-    - 外貌特征
-    - 性格特点
-    - 背景故事
-    - 特殊能力（列表形式）
+    const generatePrompt = `请根据以上对话内容，生成一个完整的角色信息卡，包含以下字段：
+    - name: 角色姓名
+    - gender: 性别
+    - birthday: 生日
+    - constellation: 星座
+    - species: 物种
+    - introduction: 角色简介（一两句话概括）
+    - personalityTags: 性格标签（数组，多个词）
+    - appearance: 外观描述（对象，含 hairColor 发色、eyeColor 瞳色、detail 详细描述）
+    - personality: 性格描述（长文本段）
+    - backstory: 角色背景（长文本段）
+    - storyline: 故事线（长文本段，可选）
+    - abilities: 特殊能力（数组，每项含 name 和 description，可选）
+    - relationships: 关系网（数组，每项含 character 角色名和 relation 关系描述，可选）
+    - radar: 性格六维图（对象，含 extroversion 外向度、rationality 理智度、kindness 善良度、courage 胆识度、openness 开放度、responsibility 责任感，数值 0~1）
     
     请以 JSON 格式返回。`;
 
@@ -172,15 +167,21 @@ export async function generateCharacterCard(
           success: true,
           data: {
             name: '新角色',
-            subtitle: 'New Character',
-            age: '未知',
             gender: '未知',
-            height: '未知',
-            occupation: '未知',
-            appearance: content,
+            species: '未知',
+            introduction: content || '',
+            personalityTags: [],
+            appearance: { hairColor: '', eyeColor: '', detail: '' },
             personality: '',
             backstory: '',
-            abilities: []
+            radar: {
+              extroversion: 0.5,
+              rationality: 0.5,
+              kindness: 0.5,
+              courage: 0.5,
+              openness: 0.5,
+              responsibility: 0.5,
+            },
           }
         };
       }

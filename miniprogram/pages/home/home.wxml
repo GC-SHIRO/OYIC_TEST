@@ -32,13 +32,13 @@
         data-status="incomplete"
       >
         <image 
-          src="{{item.image}}" 
+          src="{{item.avatar}}" 
           class="card-image" 
           mode="aspectFill"
         />
         <view class="card-info">
           <view class="card-name">{{item.name}}</view>
-          <view class="card-desc">{{item.description}}</view>
+          <view class="card-desc">{{item.introduction}}</view>
         </view>
         <view class="card-blur-overlay">
           <view class="incomplete-label">未完成</view>
@@ -55,13 +55,13 @@
         data-status="completed"
       >
         <image 
-          src="{{item.image}}" 
+          src="{{item.avatar}}" 
           class="card-image" 
           mode="aspectFill"
         />
         <view class="card-info">
           <view class="card-name">{{item.name}}</view>
-          <view class="card-desc">{{item.description}}</view>
+          <view class="card-desc">{{item.introduction}}</view>
           <t-tag class="card-tag" variant="light" theme="primary">已完成</t-tag>
         </view>
       </view>

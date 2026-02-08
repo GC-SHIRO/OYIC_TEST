@@ -1,51 +1,10 @@
 // 预览角色卡页面
 
-// 外观描述
-interface IAppearance {
-  hairColor: string;       // 发色
-  eyeColor: string;        // 瞳色
-  detail: string;          // 详细描述
-}
-
-// 特殊能力
-interface IAbility {
-  name: string;
-  description: string;
-}
-
-// 关系网
-interface IRelationship {
-  character: string;       // 关联角色
-  relation: string;        // 关系描述
-}
-
-// 性格六维图
-interface IPersonalityRadar {
-  extroversion: number;    // 外向度
-  rationality: number;     // 理智度
-  kindness: number;        // 善良度
-  courage: number;         // 胆识度
-  openness: number;        // 开放度
-  responsibility: number;  // 责任感
-}
-
-interface ICharacterDetail {
-  id: string;
-  name: string;            // 角色姓名
-  introduction: string;    // 角色简介（一两句话概括）
-  gender: string;          // 性别
-  constellation: string;   // 星座
-  birthday: string;        // 生日
-  species: string;         // 物种
-  personalityTags: string[];       // 性格标签
-  appearance: IAppearance;         // 外观描述
-  personality: string;             // 性格描述
-  backstory: string;               // 角色背景
-  storyline: string;               // 故事线（可选）
-  abilities: IAbility[];           // 特殊能力（可选）
-  relationships: IRelationship[];  // 关系网（可选）
-  personalityRadar: IPersonalityRadar;  // 性格六维图
-}
+import type {
+  ICharacterCard,
+  ICharacterInfo,
+} from '../../types/character';
+import { saveCharacter } from '../../services/storage';
 
 // 生成请求接口定义
 interface IGenerateRequest {
@@ -55,7 +14,7 @@ interface IGenerateRequest {
 
 interface IGenerateResponse {
   success: boolean;
-  data?: ICharacterDetail;
+  data?: ICharacterInfo;
   error?: string;
 }
 
@@ -64,7 +23,7 @@ Page({
     characterId: '',
     readonly: false,
     loading: true,
-    character: {} as ICharacterDetail
+    character: {} as ICharacterInfo
   },
 
   onLoad(options: { characterId?: string; readonly?: string }) {
@@ -84,11 +43,11 @@ Page({
 
   // 加载角色详情
   loadCharacterDetail(characterId: string) {
-    // TODO: 从本地存储或服务器加载
-    const character = wx.getStorageSync(`character_${characterId}`);
+    // 从本地存储加载角色卡
+    const card: ICharacterCard | null = wx.getStorageSync(`character_${characterId}`) || null;
     
-    if (character) {
-      this.setData({ character, loading: false });
+    if (card && card.characterInfo) {
+      this.setData({ character: card.characterInfo, loading: false });
       this.drawRadarChart();
     } else {
       // 使用示例数据
@@ -167,7 +126,7 @@ Page({
 
   // 绘制性格六维雷达图
   drawRadarChart() {
-    const radar = this.data.character.personalityRadar;
+    const radar = this.data.character.radar;
     if (!radar) return;
 
     const query = this.createSelectorQuery();
@@ -278,9 +237,8 @@ Page({
   },
 
   // 获取模拟角色数据
-  getMockCharacter(): ICharacterDetail {
+  getMockCharacter(): ICharacterInfo {
     return {
-      id: 'mock_1',
       name: '丰川祥子',
       introduction: '原属丰川豪门的贵族少女，因家庭崩溃而蓬头垢面，以冷酷与理智将自己武装起来，带领Ave Mujica在残酷的世界中杀出一条血路。',
       gender: '女',
@@ -308,7 +266,7 @@ Page({
         { character: '三角初华', relation: '商业伙伴 / 相互利用的盟友' },
         { character: '八幡海铃', relation: '雇佣关系 / 值得信赖的战力' }
       ],
-      personalityRadar: {
+      radar: {
         extroversion: 0.6,
         rationality: 0.95,
         kindness: 0.3,
@@ -339,16 +297,22 @@ Page({
   // 完成创建
   onComplete() {
     const { character, characterId } = this.data;
-    
-    // 保存角色到本地存储
-    wx.setStorageSync(`character_${characterId}`, {
-      ...character,
-      status: 'completed',
-      createdAt: Date.now()
-    });
+    const now = Date.now();
 
-    // 更新角色列表
-    this.updateCharacterList(characterId);
+    // 构建角色卡完整存储结构
+    const card: ICharacterCard = {
+      id: characterId,
+      createdAt: now,
+      updatedAt: now,
+      creatorId: getApp<IAppOption>().globalData.openId || '',
+      status: 'completed',
+      conversationId: characterId,
+      avatar: '',
+      characterInfo: character,
+    };
+
+    // 使用统一存储服务保存
+    saveCharacter(card);
 
     wx.showToast({
       title: '创建成功',
@@ -365,13 +329,8 @@ Page({
     });
   },
 
-  // 更新角色列表
+  // 更新角色列表（已由 saveCharacter 统一管理，保留兼容）
   updateCharacterList(characterId: string) {
-    const characterList = wx.getStorageSync('characterList') || [];
-    
-    if (!characterList.includes(characterId)) {
-      characterList.push(characterId);
-      wx.setStorageSync('characterList', characterList);
-    }
+    // 此方法已不再需要，saveCharacter 内部会自动维护 characterList
   }
 });
