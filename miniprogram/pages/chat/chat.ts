@@ -1,23 +1,33 @@
-// 创建角色 - AI对话页面
+// 创建角色 - AI对话页面（集成 Dify）
 import type { IMessage } from '../../services/storage';
-import { saveConversation as storageSaveConversation } from '../../services/storage';
+import {
+  saveConversation as storageSaveConversation,
+  saveCharacter,
+  saveCharacterLocal,
+  getCharacter,
+  getConversation,
+  generateId,
+  PLACEHOLDER_IMAGE,
+} from '../../services/storage';
+import type { ICharacterCard } from '../../types/character';
+import { createEmptyCharacterInfo } from '../../types/character';
+import { chatWithDify, generateCharacterCard } from '../../services/agent';
 
-// Agent API 接口定义
-interface IAgentResponse {
-  success: boolean;
-  message: string;
-  data?: any;
-}
+// 打字机效果状态（模块级变量）
+let _typewriterTimer: any = null;
+let _typewriterFullText = '';
+let _typewriterMsgIndex = -1;
 
 Page({
   data: {
-    characterId: '', // 如果是编辑已有角色
+    characterId: '',
+    difyConversationId: '',
     inputValue: '',
     messages: [] as IMessage[],
     isTyping: false,
-    scrollToMessage: '',
-    // 对话历史，用于发送给Agent
-    conversationHistory: [] as { role: string; content: string }[]
+    isGenerating: false,
+    scrollTop: 0,
+    keyboardHeight: 0,
   },
 
   onLoad(options: { characterId?: string }) {
@@ -25,7 +35,6 @@ Page({
       this.setData({ characterId: options.characterId });
       this.loadExistingConversation(options.characterId);
     } else {
-      // 新建角色，显示欢迎消息
       this.showWelcomeMessage();
     }
   },
@@ -36,144 +45,176 @@ Page({
       id: 'welcome',
       role: 'ai',
       content: '你好！我是你的角色创作助手\n\n告诉我你的想法吧！可以是角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~',
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
-    
-    this.setData({
-      messages: [welcomeMessage]
-    });
+    this.setData({ messages: [welcomeMessage] });
+    this.scrollToBottom();
   },
 
-  // 加载已有对话
+  // 加载已有对话（恢复 difyConversationId）
   loadExistingConversation(characterId: string) {
-    // TODO: 从本地存储或服务器加载对话历史
-    const conversation = wx.getStorageSync(`conversation_${characterId}`);
-    if (conversation && conversation.length > 0) {
-      this.setData({ messages: conversation });
+    // 从本地恢复对话消息
+    const messages = getConversation(characterId);
+    if (messages && messages.length > 0) {
+      this.setData({ messages });
     } else {
       this.showWelcomeMessage();
     }
+
+    // 从角色卡恢复 Dify 会话 ID
+    const card = getCharacter(characterId);
+    if (card && card.conversationId) {
+      this.setData({ difyConversationId: card.conversationId });
+    }
+
+    this.scrollToBottom();
   },
 
   // 输入框变化
   onInput(e: WechatMiniprogram.Input) {
-    this.setData({
-      inputValue: e.detail.value
-    });
+    this.setData({ inputValue: e.detail.value });
+  },
+
+  // 键盘高度变化（核心：防止闪烁）
+  onKeyboardChange(e: any) {
+    const height = e.detail.height || 0;
+    this.setData({ keyboardHeight: height });
+    if (height > 0) {
+      this.scrollToBottom();
+    }
+  },
+
+  // 输入框获焦
+  onInputFocus() {
+    // 延迟滚动，等键盘动画完成
+    setTimeout(() => this.scrollToBottom(), 300);
+  },
+
+  // 输入框失焦
+  onInputBlur() {
+    this.setData({ keyboardHeight: 0 });
   },
 
   // 发送消息
   async onSend() {
-    const { inputValue, messages, conversationHistory } = this.data;
-    
+    const { inputValue, messages, difyConversationId, characterId } = this.data;
     if (!inputValue.trim()) return;
 
-    // 创建用户消息
+    // 如果打字机正在运行，先完成它
+    this.finishTypewriter();
+
+    const userText = inputValue.trim();
+
     const userMessage: IMessage = {
       id: `user_${Date.now()}`,
       role: 'user',
-      content: inputValue.trim(),
-      timestamp: Date.now()
-    };
+      content: userText,
+      timestamp: Date.now(),
+      animate: true,
+    } as any;
 
-    // 更新界面
     const newMessages = [...messages, userMessage];
     this.setData({
       messages: newMessages,
       inputValue: '',
-      scrollToMessage: `msg-${userMessage.id}`,
-      isTyping: true
+      isTyping: true,
+    });
+    this.scrollToBottom();
+
+    // 首次发送时，创建未完成角色卡（需要登录）
+    if (!characterId) {
+      const app = getApp<IAppOption>();
+      if (!app.globalData.openId) {
+        this.setData({ isTyping: false });
+        wx.showModal({
+          title: '请先登录',
+          content: '创建角色卡需要先登录账号',
+          confirmText: '去登录',
+          cancelText: '取消',
+          success: (res) => {
+            if (res.confirm) {
+              wx.navigateBack();
+              setTimeout(() => wx.switchTab({ url: '/pages/profile/profile' }), 300);
+            }
+          },
+        });
+        return;
+      }
+
+      const newId = generateId();
+      const now = Date.now();
+      const card: ICharacterCard = {
+        id: newId,
+        createdAt: now,
+        updatedAt: now,
+        creatorId: app.globalData.openId,
+        status: 'incomplete',
+        conversationId: '',
+        avatar: '',
+        characterInfo: createEmptyCharacterInfo(),
+      };
+      saveCharacterLocal(card); // 初始草稿只存本地，不推云端
+      this.setData({ characterId: newId });
+    }
+
+    // 调用 Dify API
+    const response = await chatWithDify(userText, difyConversationId).catch((err: any) => {
+      console.error('chatWithDify 异常:', err);
+      return { success: false, message: '', error: err?.message || String(err) } as ReturnType<typeof chatWithDify> extends Promise<infer T> ? T : never;
     });
 
-    // 更新对话历史
-    const newHistory = [...conversationHistory, { role: 'user', content: inputValue.trim() }];
-    this.setData({ conversationHistory: newHistory });
+    if (response.success && response.message) {
+      const newConvId = response.conversationId || difyConversationId;
+      if (newConvId && newConvId !== difyConversationId) {
+        this.setData({ difyConversationId: newConvId });
+        this.updateCardConversationId(newConvId);
+      }
 
-    // 调用Agent API
-    try {
-      const response = await this.callAgentAPI(inputValue.trim(), newHistory);
-      
-      // 创建AI回复消息
       const aiMessage: IMessage = {
         id: `ai_${Date.now()}`,
         role: 'ai',
-        content: response.message || '我理解了你的想法，请继续告诉我更多细节吧~',
-        timestamp: Date.now()
-      };
+        content: '',
+        timestamp: Date.now(),
+        animate: true,
+      } as any;
 
+      const updatedMessages = [...newMessages, aiMessage];
       this.setData({
-        messages: [...newMessages, aiMessage],
+        messages: updatedMessages,
         isTyping: false,
-        scrollToMessage: `msg-${aiMessage.id}`,
-        conversationHistory: [...newHistory, { role: 'assistant', content: aiMessage.content }]
       });
 
-      // 保存对话到本地
-      this.saveConversation();
-      
-    } catch (error) {
-      console.error('Agent API error:', error);
-      
-      // 显示错误消息
+      // 启动打字机流式显示
+      this.streamDisplayMessage(response.message, updatedMessages.length - 1);
+    } else {
+      const errDetail = response.error || response.message || '未知错误';
+      console.error('Dify 调用失败，详细原因:', errDetail);
+
       const errorMessage: IMessage = {
         id: `ai_${Date.now()}`,
         role: 'ai',
-        content: '抱歉，我遇到了一些问题，请稍后再试~',
-        timestamp: Date.now()
-      };
+        content: `调用失败: ${errDetail}`,
+        timestamp: Date.now(),
+        animate: true,
+      } as any;
 
       this.setData({
         messages: [...newMessages, errorMessage],
-        isTyping: false
+        isTyping: false,
       });
+      this.scrollToBottom();
     }
   },
 
-  /**
-   * 调用 Agent API
-   * 这是暴露的接口，用于接入外部的 Coze API
-   * @param userInput 用户输入
-   * @param history 对话历史
-   */
-  async callAgentAPI(userInput: string, history: { role: string; content: string }[]): Promise<IAgentResponse> {
-    // TODO: 替换为实际的 Coze API 调用
-    // 示例请求格式：
-    // const response = await wx.request({
-    //   url: 'YOUR_COZE_API_ENDPOINT',
-    //   method: 'POST',
-    //   header: {
-    //     'Content-Type': 'application/json',
-    //     'Authorization': 'Bearer YOUR_API_KEY'
-    //   },
-    //   data: {
-    //     conversation_id: this.data.characterId || 'new',
-    //     messages: history,
-    //     user_input: userInput
-    //   }
-    // });
-    
-    // 模拟API响应延迟
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          success: true,
-          message: this.generateMockResponse(userInput)
-        });
-      }, 1000 + Math.random() * 1000);
-    });
-  },
-
-  // 模拟AI回复（开发阶段使用）
-  generateMockResponse(input: string): string {
-    const responses = [
-      '很棒的想法！这个角色听起来很有意思。能告诉我更多关于TA的性格特点吗？',
-      '我已经记录下了这些信息。这个角色有什么特殊的能力或技能吗？',
-      '太有创意了！让我们继续完善这个角色的背景故事吧。',
-      '非常好！这些细节让角色更加立体了。还有什么想补充的吗？',
-      '我理解了，这个角色的设定很完整了。你可以点击右上角的确认按钮来生成角色卡~'
-    ];
-    
-    return responses[Math.floor(Math.random() * responses.length)];
+  // 更新角色卡的 conversationId
+  updateCardConversationId(convId: string) {
+    const { characterId } = this.data;
+    if (!characterId) return;
+    const card = getCharacter(characterId);
+    if (card) {
+      card.conversationId = convId;
+      saveCharacter(card);
+    }
   },
 
   // 选择图片
@@ -183,38 +224,37 @@ Page({
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
       success: (res) => {
-        const images = res.tempFiles.map(file => file.tempFilePath);
-        
-        // 创建带图片的用户消息
+        const images = res.tempFiles.map((file) => file.tempFilePath);
+
         const userMessage: IMessage = {
           id: `user_${Date.now()}`,
           role: 'user',
           content: '参考图片',
-          images: images,
-          timestamp: Date.now()
+          images,
+          timestamp: Date.now(),
         };
 
         const { messages } = this.data;
         this.setData({
           messages: [...messages, userMessage],
-          scrollToMessage: `msg-${userMessage.id}`
+          scrollToMessage: `msg-${userMessage.id}`,
         });
 
-        // 模拟AI回复
+        // TODO: 后续可将图片上传到云存储后发给 Dify
+        // 暂时展示图片回复提示
         setTimeout(() => {
           const aiMessage: IMessage = {
             id: `ai_${Date.now()}`,
             role: 'ai',
             content: '收到你的参考图片了！我会根据这些图片帮你构建角色形象。你想要这个角色有什么特别的特征吗？',
-            timestamp: Date.now()
+            timestamp: Date.now(),
           };
-
           this.setData({
             messages: [...this.data.messages, aiMessage],
-            scrollToMessage: `msg-${aiMessage.id}`
+            scrollToMessage: `msg-${aiMessage.id}`,
           });
         }, 1500);
-      }
+      },
     });
   },
 
@@ -222,48 +262,211 @@ Page({
   onPreviewImage(e: WechatMiniprogram.TouchEvent) {
     const url = e.currentTarget.dataset.url;
     const allImages = this.data.messages
-      .filter(m => m.images && m.images.length > 0)
-      .flatMap(m => m.images || []);
-    
-    wx.previewImage({
-      current: url,
-      urls: allImages
-    });
+      .filter((m) => m.images && m.images.length > 0)
+      .flatMap((m) => m.images || []);
+    wx.previewImage({ current: url, urls: allImages });
   },
 
   // 返回上一页
   onBack() {
+    this.finishTypewriter();
+    this.saveConversation();
     wx.navigateBack();
   },
 
-  // 确认生成
-  onConfirm() {
-    const { messages, characterId } = this.data;
-    
+  // 确认生成角色卡
+  async onConfirm() {
+    this.finishTypewriter();
+    const { messages, difyConversationId, characterId } = this.data;
+
     if (messages.length <= 1) {
-      wx.showToast({
-        title: '请先描述你的角色',
-        icon: 'none'
-      });
+      wx.showToast({ title: '请先描述你的角色', icon: 'none' });
       return;
     }
 
-    // 保存对话后跳转到预览页
+    if (!difyConversationId) {
+      wx.showToast({ title: '对话未建立，请先发送消息', icon: 'none' });
+      return;
+    }
+
+    // 显示生成中状态
+    this.setData({ isGenerating: true });
+    wx.showLoading({ title: '正在生成角色卡...', mask: true });
+
+    try {
+      // 发送 "Give_Result" 获取结构化角色卡数据
+      const result = await generateCharacterCard(difyConversationId);
+
+      wx.hideLoading();
+      this.setData({ isGenerating: false });
+
+      if (result.success && result.data) {
+        // 检查角色卡信息完整性（abilities 和 relationships 为可选，不检查）
+        const missingFields = this.checkCharacterCompleteness(result.data);
+        if (missingFields.length > 0) {
+          wx.hideLoading();
+          this.setData({ isGenerating: false });
+          wx.showModal({
+            title: '角色信息不完整',
+            content: `以下信息缺失：${missingFields.join('、')}\n\n建议继续与 AI 对话补充细节后再生成。`,
+            confirmText: '继续生成',
+            cancelText: '返回补充',
+            success: (modalRes) => {
+              if (modalRes.confirm) {
+                this.saveAndNavigateToPreview(result.data!, characterId);
+              }
+            },
+          });
+          return;
+        }
+
+        this.saveAndNavigateToPreview(result.data, characterId);
+      } else {
+        wx.showToast({
+          title: result.error || '生成失败，请重试',
+          icon: 'none',
+          duration: 2000,
+        });
+      }
+    } catch (error) {
+      console.error('生成角色卡失败:', error);
+      wx.hideLoading();
+      this.setData({ isGenerating: false });
+      wx.showToast({ title: '生成失败，请重试', icon: 'none' });
+    }
+  },
+
+  // 保存角色卡并跳转预览
+  saveAndNavigateToPreview(charInfo: any, characterId: string) {
+    const card = getCharacter(characterId);
+    if (card) {
+      card.characterInfo = charInfo;
+      card.avatar = card.avatar || PLACEHOLDER_IMAGE;
+      saveCharacter(card);
+    }
+
     this.saveConversation();
-    
+
     wx.navigateTo({
-      url: `/pages/preview/preview?characterId=${characterId || 'new'}`
+      url: `/pages/preview/preview?characterId=${characterId}`,
     });
+  },
+
+  // 检查角色卡必填字段完整性（排除 abilities 和 relationships）
+  checkCharacterCompleteness(info: any): string[] {
+    const missing: string[] = [];
+    const checks: [string, string][] = [
+      ['name', '角色姓名'],
+      ['gender', '性别'],
+      ['species', '物种'],
+      ['introduction', '角色简介'],
+      ['personality', '性格描述'],
+      ['backstory', '角色背景'],
+    ];
+
+    for (const [key, label] of checks) {
+      if (!info[key] || (typeof info[key] === 'string' && !info[key].trim())) {
+        missing.push(label);
+      }
+    }
+
+    // 检查性格标签
+    if (!info.personalityTags || !Array.isArray(info.personalityTags) || info.personalityTags.length === 0) {
+      missing.push('性格标签');
+    }
+
+    // 检查外观
+    if (!info.appearance || !info.appearance.detail) {
+      missing.push('外观描述');
+    }
+
+    // 检查雷达图
+    if (!info.radar) {
+      missing.push('性格六维图');
+    }
+
+    return missing;
+  },
+
+  // 页面卸载时清理
+  onUnload() {
+    this.finishTypewriter();
+    this.saveConversation();
+  },
+
+  // 滚动到页面底部
+  scrollToBottom() {
+    wx.nextTick(() => {
+      const query = this.createSelectorQuery();
+      query.select('.message-list').boundingClientRect();
+      query.select('.chat-container').boundingClientRect();
+      query.exec((res: any) => {
+        if (res && res[0] && res[1]) {
+          const listHeight = res[0].height || 0;
+          const containerHeight = res[1].height || 0;
+          if (listHeight > containerHeight) {
+            this.setData({ scrollTop: listHeight + 500 });
+          }
+        }
+      });
+    });
+  },
+
+  // 打字机流式显示 AI 回复
+  streamDisplayMessage(fullText: string, msgIndex: number) {
+    this.finishTypewriter();
+
+    _typewriterFullText = fullText;
+    _typewriterMsgIndex = msgIndex;
+
+    let charIndex = 0;
+    let scrollTick = 0;
+    // 根据文本长度调整每次显示字符数和间隔
+    const batchSize = fullText.length > 500 ? 8 : 3;
+    const interval = 50; // 降低频率，减少 setData 次数
+
+    _typewriterTimer = setInterval(() => {
+      charIndex = Math.min(charIndex + batchSize, fullText.length);
+      scrollTick++;
+
+      this.setData({
+        [`messages[${msgIndex}].content`]: fullText.substring(0, charIndex),
+      });
+
+      // 每 500ms 滚动一次 + 完成时滚动
+      if (scrollTick % 10 === 0 || charIndex >= fullText.length) {
+        this.scrollToBottom();
+      }
+
+      if (charIndex >= fullText.length) {
+        clearInterval(_typewriterTimer);
+        _typewriterTimer = null;
+        _typewriterFullText = '';
+        _typewriterMsgIndex = -1;
+        this.saveConversation();
+      }
+    }, interval);
+  },
+
+  // 立即完成打字机效果（用于发送新消息、离开页面等场景）
+  finishTypewriter() {
+    if (_typewriterTimer) {
+      clearInterval(_typewriterTimer);
+      _typewriterTimer = null;
+    }
+    if (_typewriterFullText && _typewriterMsgIndex >= 0) {
+      this.setData({
+        [`messages[${_typewriterMsgIndex}].content`]: _typewriterFullText,
+      });
+      _typewriterFullText = '';
+      _typewriterMsgIndex = -1;
+    }
   },
 
   // 保存对话到本地
   saveConversation() {
     const { messages, characterId } = this.data;
-    const id = characterId || `new_${Date.now()}`;
-    storageSaveConversation(id, messages);
-    
-    if (!characterId) {
-      this.setData({ characterId: id });
-    }
-  }
+    if (!characterId) return;
+    storageSaveConversation(characterId, messages);
+  },
 });

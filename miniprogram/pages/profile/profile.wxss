@@ -215,7 +215,7 @@
 .works-scroll {
   display: flex;
   white-space: nowrap;
-  padding: 36rpx 0 24rpx 0;
+  padding: 24rpx 0 24rpx 0;
   margin: 0 0rpx;
   padding-left: 24rpx;
   padding-right: 24rpx;

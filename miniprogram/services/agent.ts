@@ -1,217 +1,292 @@
 /**
  * Agent API 服务
- * 用于接入外部的 Coze API 或其他 AI Agent 服务
+ * 通过 difyChat 云函数间接调用 Dify 对话 API
+ * API 密钥安全存放在云端，前端不暴露任何密钥
  */
 
 import type { ICharacterInfo } from '../types/character';
 
-// API 配置
-const API_CONFIG = {
-  // Coze API 端点，请替换为实际的 API 地址
-  baseUrl: 'https://api.coze.cn',
-  // API 密钥，请替换为实际的密钥
-  apiKey: 'YOUR_COZE_API_KEY',
-  // Bot ID
-  botId: 'YOUR_BOT_ID'
-};
+// ========== 类型定义 ==========
 
-// 对话消息类型
-export interface IChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  content_type?: 'text' | 'image_url';
+/** Dify 对话响应（由云函数返回） */
+export interface IDifyChatResult {
+  answer: string;
+  conversationId: string;
+  messageId: string;
 }
 
-// Agent 响应类型
+/** 调用 Dify 的统一返回类型 */
 export interface IAgentResponse {
   success: boolean;
   message: string;
+  conversationId?: string;
   data?: any;
   error?: string;
 }
 
-// 角色生成请求
-export interface IGenerateRequest {
-  characterId: string;
-  conversationId?: string;
-  conversationHistory: IChatMessage[];
-}
-
-// 角色生成响应 — data 为完整的角色具体信息
+/** 角色卡生成结果 */
 export interface IGenerateResponse {
   success: boolean;
   data?: ICharacterInfo;
+  conversationId?: string;
   error?: string;
 }
 
+// ========== 核心 API ==========
+
 /**
- * 调用 Coze Agent API 进行对话
- * @param userInput 用户输入
- * @param history 对话历史
- * @param conversationId 对话ID（可选，用于上下文关联）
+ * 发送对话消息到 Dify（通过云函数代理）
+ * @param query 用户输入的文本
+ * @param conversationId Dify 会话 ID（首次留空，后续传入以维持上下文）
+ * @returns 包含 AI 回复和 conversationId
  */
-export async function chatWithAgent(
-  userInput: string,
-  history: IChatMessage[],
+export async function chatWithDify(
+  query: string,
   conversationId?: string
 ): Promise<IAgentResponse> {
   try {
-    const response = await new Promise<WechatMiniprogram.RequestSuccessCallbackResult>(
-      (resolve, reject) => {
-        wx.request({
-          url: `${API_CONFIG.baseUrl}/v1/chat/completions`,
-          method: 'POST',
-          header: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${API_CONFIG.apiKey}`
-          },
-          data: {
-            bot_id: API_CONFIG.botId,
-            conversation_id: conversationId,
-            messages: [
-              ...history,
-              { role: 'user', content: userInput }
-            ],
-            stream: false
-          },
-          success: resolve,
-          fail: reject
-        });
-      }
-    );
+    const res = await (wx.cloud.callFunction as any)({
+      name: 'difyChat',
+      data: {
+        action: 'chat',
+        query,
+        conversationId: conversationId || '',
+      },
+      timeout: 120000, // 客户端等待 120 秒
+    });
 
-    if (response.statusCode === 200) {
-      const data = response.data as any;
+    const result = res.result as any;
+
+    if (result.code === 0 && result.data) {
       return {
         success: true,
-        message: data.choices?.[0]?.message?.content || '我理解了你的想法~',
-        data: data
+        message: result.data.answer || '',
+        conversationId: result.data.conversationId || '',
+        data: result.data,
       };
     } else {
-      throw new Error(`API Error: ${response.statusCode}`);
+      return {
+        success: false,
+        message: result.message || '调用失败',
+        error: result.error || result.message,
+      };
     }
   } catch (error: any) {
-    console.error('Agent API Error:', error);
+    console.error('Dify 调用失败:', error);
     return {
       success: false,
-      message: '抱歉，我遇到了一些问题，请稍后再试~',
-      error: error.message
+      message: '网络异常，请稍后重试',
+      error: error.message,
     };
   }
 }
 
 /**
- * 调用 API 生成角色卡
- * @param request 生成请求参数
+ * 发送 "Give_Result" 到 Dify，获取标准角色卡 JSON
+ * @param conversationId Dify 会话 ID（必须已有对话上下文）
+ * @returns 解析后的 ICharacterInfo
  */
 export async function generateCharacterCard(
-  request: IGenerateRequest
+  conversationId: string
 ): Promise<IGenerateResponse> {
   try {
-    // 构建生成提示
-    const generatePrompt = `请根据以上对话内容，生成一个完整的角色信息卡，包含以下字段：
-    - name: 角色姓名
-    - gender: 性别
-    - birthday: 生日
-    - constellation: 星座
-    - species: 物种
-    - introduction: 角色简介（一两句话概括）
-    - personalityTags: 性格标签（数组，多个词）
-    - appearance: 外观描述（对象，含 hairColor 发色、eyeColor 瞳色、detail 详细描述）
-    - personality: 性格描述（长文本段）
-    - backstory: 角色背景（长文本段）
-    - storyline: 故事线（长文本段，可选）
-    - abilities: 特殊能力（数组，每项含 name 和 description，可选）
-    - relationships: 关系网（数组，每项含 character 角色名和 relation 关系描述，可选）
-    - radar: 性格六维图（对象，含 extroversion 外向度、rationality 理智度、kindness 善良度、courage 胆识度、openness 开放度、responsibility 责任感，数值 0~1）
-    
-    请以 JSON 格式返回。`;
+    const response = await chatWithDify('Give_Result', conversationId);
 
-    const response = await new Promise<WechatMiniprogram.RequestSuccessCallbackResult>(
-      (resolve, reject) => {
-        wx.request({
-          url: `${API_CONFIG.baseUrl}/v1/chat/completions`,
-          method: 'POST',
-          header: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${API_CONFIG.apiKey}`
-          },
-          data: {
-            bot_id: API_CONFIG.botId,
-            messages: [
-              ...request.conversationHistory,
-              { role: 'user', content: generatePrompt }
-            ],
-            stream: false
-          },
-          success: resolve,
-          fail: reject
-        });
-      }
-    );
+    if (!response.success) {
+      return { success: false, error: response.error || '生成失败' };
+    }
 
-    if (response.statusCode === 200) {
-      const data = response.data as any;
-      const content = data.choices?.[0]?.message?.content;
-      
-      // 尝试解析 JSON
-      try {
-        const characterData = JSON.parse(content);
-        return {
-          success: true,
-          data: characterData
-        };
-      } catch {
-        // 如果无法解析，返回默认格式
-        return {
-          success: true,
-          data: {
-            name: '新角色',
-            gender: '未知',
-            species: '未知',
-            introduction: content || '',
-            personalityTags: [],
-            appearance: { hairColor: '', eyeColor: '', detail: '' },
-            personality: '',
-            backstory: '',
-            radar: {
-              extroversion: 0.5,
-              rationality: 0.5,
-              kindness: 0.5,
-              courage: 0.5,
-              openness: 0.5,
-              responsibility: 0.5,
-            },
-          }
-        };
-      }
+    const rawAnswer = response.message || '';
+
+    // 尝试从回复中提取 JSON（Dify 可能在 JSON 外包裹 markdown 代码块）
+    const characterInfo = parseCharacterJSON(rawAnswer);
+
+    if (characterInfo) {
+      return {
+        success: true,
+        data: characterInfo,
+        conversationId: response.conversationId,
+      };
     } else {
-      throw new Error(`API Error: ${response.statusCode}`);
+      return {
+        success: false,
+        error: '无法解析角色卡数据，请重试',
+      };
     }
   } catch (error: any) {
-    console.error('Generate API Error:', error);
+    console.error('生成角色卡失败:', error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
 
+// ========== 工具函数 ==========
+
 /**
- * 更新 API 配置
- * @param config 新的配置
+ * 从 Dify 回复文本中解析角色卡 JSON
+ * 支持纯 JSON、```json ... ``` 包裹、以及 Python 风格单引号
  */
-export function updateAPIConfig(config: Partial<typeof API_CONFIG>) {
-  Object.assign(API_CONFIG, config);
+function parseCharacterJSON(text: string): ICharacterInfo | null {
+  if (!text) return null;
+
+  // 1. 尝试提取 ```json ... ``` 代码块
+  const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  let jsonStr = codeBlockMatch ? codeBlockMatch[1].trim() : text.trim();
+
+  // 2. 如果没有代码块，尝试提取 { ... } 之间的内容
+  if (!codeBlockMatch) {
+    const firstBrace = jsonStr.indexOf('{');
+    const lastBrace = jsonStr.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+    }
+  }
+
+  // 3. 尝试直接解析
+  const obj = tryParseJSON(jsonStr);
+  if (obj) return normalizeCharacterInfo(obj);
+
+  // 4. 尝试将 Python 风格单引号转为双引号后解析
+  const fixed = fixPythonQuotes(jsonStr);
+  const obj2 = tryParseJSON(fixed);
+  if (obj2) return normalizeCharacterInfo(obj2);
+
+  console.error('角色卡 JSON 解析失败，原始文本:', jsonStr.substring(0, 500));
+  return null;
 }
 
 /**
- * 获取当前 API 配置（不含敏感信息）
+ * 安全尝试 JSON.parse
  */
-export function getAPIConfig() {
+function tryParseJSON(str: string): any | null {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 将 Python 风格的单引号字典转换为合法 JSON
+ * 处理: 'key': 'value' → "key": "value"
+ * 同时处理值内部包含的撇号（如 it's）
+ */
+function fixPythonQuotes(text: string): string {
+  let result = '';
+  let i = 0;
+  let inString = false;
+  let stringChar = '';
+
+  while (i < text.length) {
+    const ch = text[i];
+
+    if (!inString) {
+      if (ch === "'") {
+        // 单引号开始字符串，替换为双引号
+        result += '"';
+        inString = true;
+        stringChar = "'";
+        i++;
+        continue;
+      } else if (ch === '"') {
+        result += '"';
+        inString = true;
+        stringChar = '"';
+        i++;
+        continue;
+      }
+      result += ch;
+      i++;
+    } else {
+      if (ch === '\\') {
+        // 转义字符，保留下一个字符
+        result += ch;
+        i++;
+        if (i < text.length) {
+          result += text[i];
+          i++;
+        }
+        continue;
+      }
+
+      if (stringChar === "'" && ch === "'") {
+        // 检查这个单引号是否是字符串结束符
+        // 结束符后面通常跟: , ] } 或空白/换行
+        const after = text.substring(i + 1).trimStart();
+        const nextChar = after[0];
+        if (!nextChar || ':,]}'.indexOf(nextChar) !== -1) {
+          // 是结束引号
+          result += '"';
+          inString = false;
+          i++;
+          continue;
+        } else {
+          // 值内部的撇号（如 it's），转义
+          result += "\\'";
+          i++;
+          continue;
+        }
+      }
+
+      if (stringChar === '"' && ch === '"') {
+        result += '"';
+        inString = false;
+        i++;
+        continue;
+      }
+
+      // 在单引号字符串内的双引号需要转义
+      if (stringChar === "'" && ch === '"') {
+        result += '\\"';
+        i++;
+        continue;
+      }
+
+      result += ch;
+      i++;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * 标准化角色信息字段（兼容 Dify 返回的 snake_case 和 camelCase）
+ */
+function normalizeCharacterInfo(obj: any): ICharacterInfo {
   return {
-    baseUrl: API_CONFIG.baseUrl,
-    botId: API_CONFIG.botId,
-    hasApiKey: !!API_CONFIG.apiKey && API_CONFIG.apiKey !== 'YOUR_COZE_API_KEY'
+    name: obj.name || '',
+    gender: obj.gender || '',
+    birthday: obj.birthday || '',
+    constellation: obj.constellation || '',
+    species: obj.species || '',
+    introduction: obj.introduction || '',
+    personalityTags: obj.personalityTags || obj.personality_tags || [],
+    appearance: {
+      hairColor: obj.appearance?.hairColor || obj.appearance?.hair_color || '',
+      eyeColor: obj.appearance?.eyeColor || obj.appearance?.eye_color || '',
+      detail: obj.appearance?.detail || '',
+    },
+    personality: obj.personality || '',
+    backstory: obj.backstory || '',
+    storyline: obj.storyline || '',
+    abilities: (obj.abilities || []).map((a: any) => ({
+      name: a.name || '',
+      description: a.description || '',
+    })),
+    relationships: (obj.relationships || []).map((r: any) => ({
+      character: r.character || '',
+      relation: r.relation || '',
+    })),
+    radar: {
+      extroversion: Number(obj.radar?.extroversion ?? obj.ridar?.extroversion ?? 0.5),
+      rationality: Number(obj.radar?.rationality ?? obj.ridar?.rationality ?? 0.5),
+      kindness: Number(obj.radar?.kindness ?? obj.ridar?.kindness ?? 0.5),
+      courage: Number(obj.radar?.courage ?? obj.ridar?.courage ?? 0.5),
+      openness: Number(obj.radar?.openness ?? obj.ridar?.openness ?? 0.5),
+      responsibility: Number(obj.radar?.responsibility ?? obj.ridar?.responsibility ?? 0.5),
+    },
   };
 }

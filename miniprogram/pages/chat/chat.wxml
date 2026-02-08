@@ -1,12 +1,14 @@
 <!-- 创建角色 - AI对话页面 -->
 <view class="page-container">
-  <!-- 顶部导航 -->
+  <!-- 顶部导航（固定） -->
   <view class="navbar">
     <view class="nav-back" bindtap="onBack">
       <t-icon name="chevron-left" size="48rpx" color="#666" />
     </view>
     <text class="navbar-title">创建角色</text>
   </view>
+  <!-- 导航栏占位 -->
+  <view class="navbar-placeholder"></view>
   
   <!-- 聊天消息区域 -->
   <scroll-view 
@@ -14,8 +16,7 @@
     scroll-y 
     enhanced 
     show-scrollbar="{{false}}"
-    scroll-into-view="{{scrollToMessage}}"
-    scroll-with-animation
+    scroll-top="{{scrollTop}}"
   >
     <view class="message-list">
       <!-- 消息列表 -->
@@ -23,7 +24,7 @@
         wx:for="{{messages}}" 
         wx:key="id" 
         id="msg-{{item.id}}"
-        class="message {{item.role === 'ai' ? 'message-ai' : 'message-user'}}"
+        class="message {{item.role === 'ai' ? 'message-ai' : 'message-user'}} {{item.animate ? 'message-animate' : ''}}"
       >
         <view class="message-avatar">
           <text>{{item.role === 'ai' ? 'AI' : '我'}}</text>
@@ -62,7 +63,7 @@
     </view>
     
     <!-- 底部占位，防止输入栏遮挡 -->
-    <view class="bottom-placeholder"></view>
+    <view class="bottom-placeholder" style="height: {{keyboardHeight > 0 ? (keyboardHeight + 120) + 'px' : '200rpx'}}"></view>
   </scroll-view>
   
   <!-- 悬浮确认按钮 -->
@@ -71,7 +72,7 @@
   </view>
 
   <!-- 底部输入栏 -->
-  <view class="input-container">
+  <view class="input-container" style="bottom: {{keyboardHeight > 0 ? keyboardHeight + 'px' : '32rpx'}}">
     <!-- 上传按钮 -->
     <view class="action-btn" bindtap="onChooseImage">
       <t-icon name="add" size="40rpx" color="#666" />
@@ -79,14 +80,23 @@
     
     <!-- 输入框 -->
     <view class="input-wrapper">
-      <input 
+      <textarea 
         class="chat-input" 
         placeholder="输入你的想法..." 
         value="{{inputValue}}"
         bindinput="onInput"
         bindconfirm="onSend"
+        bindfocus="onInputFocus"
+        bindblur="onInputBlur"
+        bindkeyboardheightchange="onKeyboardChange"
         confirm-type="send"
         adjust-position="{{false}}"
+        fixed
+        show-confirm-bar="{{false}}"
+        maxlength="-1"
+        cursor-spacing="16"
+        hold-keyboard
+        disable-default-padding
       />
     </view>
     

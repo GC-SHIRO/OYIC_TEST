@@ -62,7 +62,7 @@
         <!-- 空状态 -->
         <view wx:if="{{works.length === 0}}" class="empty-works">
           <t-icon name="folder-open" size="80rpx" color="#ccc" />
-          <text class="empty-text">暂无作品</text>
+          <text class="empty-text">暂无角色卡，快去创建吧~</text>
         </view>
       </scroll-view>
     </view>

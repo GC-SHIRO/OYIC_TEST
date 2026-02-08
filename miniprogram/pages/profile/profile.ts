@@ -1,6 +1,6 @@
 // 我的 - 用户中心页面（基于云开发登录）
 import { cloudLogin, updateNickname, updateSignature, uploadAvatar, logout, isLoggedIn, getLocalUserInfo } from '../../services/user';
-import { getCompletedCharacters } from '../../services/storage';
+import { fetchCharactersFromCloud, getCompletedCharacters, getCurrentUserId } from '../../services/storage';
 import type { ICharacterCard } from '../../types/character';
 
 interface IWork {
@@ -40,11 +40,17 @@ Page({
 
   onLoad() {
     this.checkLogin();
-    this.loadWorks();
+    // 首屏先用本地缓存
+    this.renderWorksFromLocal();
   },
 
   onShow() {
-    this.loadWorks();
+    // 每次进入都从云端拉取最新
+    if (this.data.isLoggedIn && getCurrentUserId()) {
+      this.loadWorksFromCloud();
+    } else {
+      this.setData({ works: [] });
+    }
 
     // 更新自定义 tabbar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
@@ -123,6 +129,9 @@ Page({
         app.globalData.userInfo = userData;
 
         wx.showToast({ title: '登录成功', icon: 'success' });
+
+        // 登录后从云端拉取作品
+        this.loadWorksFromCloud();
       }
     } catch (err) {
       console.error('登录失败:', err);
@@ -204,6 +213,9 @@ Page({
       app.globalData.userInfo = userInfo;
 
       wx.showToast({ title: '注册成功', icon: 'success' });
+
+      // 注册后从云端拉取作品
+      this.loadWorksFromCloud();
     } catch (err) {
       console.error('注册失败:', err);
       this.setData({ isLoading: false });
@@ -241,6 +253,7 @@ Page({
               balance: 0,
               signature: '',
             },
+            works: [], // 退出登录时清空作品列表
           });
 
           wx.showToast({ title: '已退出', icon: 'success' });
@@ -357,24 +370,31 @@ Page({
 
   // ========== 作品列表 ==========
 
-  loadWorks() {
-    const completedCards = getCompletedCharacters();
-    const works: IWork[] = completedCards.map((card: ICharacterCard) => ({
+  /** 本地缓存快速渲染（首屏用） */
+  renderWorksFromLocal() {
+    const cards = getCompletedCharacters();
+    this.setData({ works: this.cardsToWorks(cards) });
+  },
+
+  /** 从云端拉取作品列表 */
+  async loadWorksFromCloud() {
+    try {
+      const allCards = await fetchCharactersFromCloud();
+      const completedCards = allCards.filter(c => c.status === 'completed');
+      this.setData({ works: this.cardsToWorks(completedCards) });
+    } catch (err) {
+      console.error('云端加载作品失败，使用本地缓存:', err);
+      this.renderWorksFromLocal();
+    }
+  },
+
+  cardsToWorks(cards: ICharacterCard[]): IWork[] {
+    return cards.map(card => ({
       id: card.id,
       name: card.characterInfo.name,
       image: card.avatar || '/assets/images/character_placeholder.png',
       date: this.formatDate(card.createdAt || Date.now()),
     }));
-
-    if (works.length === 0) {
-      works.push(
-        { id: '1', name: '丰川祥子', image: '/assets/images/character1.png', date: '2026-01-28' },
-        { id: '2', name: '三角初华', image: '/assets/images/character2.png', date: '2026-01-25' },
-        { id: '3', name: '若叶睦', image: '/assets/images/character3.png', date: '2026-01-20' },
-      );
-    }
-
-    this.setData({ works });
   },
 
   formatDate(timestamp: number): string {

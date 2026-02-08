@@ -1,99 +1,125 @@
 // 首页 - 角色卡中心
-import type { ICharacterListItem } from '../../types/character';
-import { getCompletedCharacters, getIncompleteCharacters } from '../../services/storage';
+import type { ICharacterListItem, ICharacterCard } from '../../types/character';
+import {
+  fetchCharactersFromCloud,
+  getCompletedCharacters,
+  getIncompleteCharacters,
+  deleteCharacter,
+  PLACEHOLDER_IMAGE,
+  getCurrentUserId,
+} from '../../services/storage';
 import { toListItem } from '../../types/character';
 
 Page({
   data: {
     scrollLeft: 0,
-    // 已完成的角色
-    completedCharacters: [
-      {
-        id: '1',
-        name: '丰川祥子',
-        introduction: '丰川家的大小姐，Ave Mujica的键盘手，要成为神人的存在，是否是人类未知',
-        avatar: '/assets/images/character1.png',
-        status: 'completed'
-      },
-      {
-        id: '2',
-        name: '三角初华',
-        introduction: 'Ave Mujica的主唱，金毛大狗狗，梦想是丰川祥子。',
-        avatar: '/assets/images/character2.png',
-        status: 'completed'
-      },
-      {
-        id: '3',
-        name: '若叶睦',
-        introduction: 'AveMujica的吉他手，多重人格，喜欢吃黄瓜',
-        avatar: '/assets/images/character3.png',
-        status: 'completed'
-      }
-    ] as ICharacterListItem[],
-    // 未完成的角色
-    incompleteCharacters: [
-      {
-        id: '4',
-        name: '神秘角色',
-        introduction: '创作中的角色...',
-        avatar: '/assets/images/character_placeholder.png',
-        status: 'incomplete'
-      }
-    ] as ICharacterListItem[]
+    completedCharacters: [] as ICharacterListItem[],
+    incompleteCharacters: [] as ICharacterListItem[],
+    loading: false,
   },
 
   onLoad() {
-    // 页面加载时可以从本地存储或服务器获取角色数据
-    this.loadCharacters();
+    // 首屏：先用本地缓存快速渲染
+    this.renderFromLocal();
   },
 
   onShow() {
-    // 每次显示页面时刷新数据
-    this.loadCharacters();
-    
+    // 每次进入都从云端拉取最新数据
+    if (getCurrentUserId()) {
+      this.loadFromCloud();
+    } else {
+      // 未登录清空列表
+      this.setData({ completedCharacters: [], incompleteCharacters: [] });
+    }
+
     // 更新自定义 tabbar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({
-        selected: 0
-      });
+      this.getTabBar().setData({ selected: 0 });
     }
   },
 
-  // 加载角色数据
-  loadCharacters() {
+  /** 从本地缓存快速渲染（首屏用） */
+  renderFromLocal() {
     const completed = getCompletedCharacters().map(toListItem);
-    const incomplete = getIncompleteCharacters().map(toListItem);
-
-    if (completed.length > 0 || incomplete.length > 0) {
-      this.setData({
-        completedCharacters: completed,
-        incompleteCharacters: incomplete,
-      });
-    }
-    // 若无存储数据，保留页面默认的示例数据
+    const incomplete = getIncompleteCharacters()
+      .filter(c => c.characterInfo?.name || c.conversationId)
+      .map(toListItem);
+    this.setCharacters(completed, incomplete);
   },
 
-  // 点击新建角色
+  /** 从云端拉取角色卡并渲染 */
+  async loadFromCloud() {
+    this.setData({ loading: true });
+    try {
+      const cards = await fetchCharactersFromCloud();
+      const completed = cards
+        .filter(c => c.status === 'completed')
+        .map(toListItem);
+      const incomplete = cards
+        .filter(c => c.status === 'incomplete')
+        .filter(c => c.characterInfo?.name || c.conversationId)
+        .map(toListItem);
+      this.setCharacters(completed, incomplete);
+    } catch (err) {
+      console.error('云端加载失败，使用本地缓存:', err);
+      this.renderFromLocal();
+    } finally {
+      this.setData({ loading: false });
+    }
+  },
+
+  /** 设置角色卡数据到视图 */
+  setCharacters(completed: ICharacterListItem[], incomplete: ICharacterListItem[]) {
+    const ensureAvatar = (item: ICharacterListItem) => ({
+      ...item,
+      avatar: item.avatar || PLACEHOLDER_IMAGE,
+    });
+    this.setData({
+      completedCharacters: completed.map(ensureAvatar),
+      incompleteCharacters: incomplete.map(ensureAvatar),
+    });
+  },
+
+  // 点击新建角色 - 弹窗确认（需先登录）
   onCreateCharacter() {
-    wx.navigateTo({
-      url: '/pages/chat/chat'
+    if (!getCurrentUserId()) {
+      wx.showModal({
+        title: '请先登录',
+        content: '创建角色卡需要先登录账号',
+        confirmText: '去登录',
+        cancelText: '取消',
+        success: (res) => {
+          if (res.confirm) {
+            wx.switchTab({ url: '/pages/profile/profile' });
+          }
+        },
+      });
+      return;
+    }
+
+    wx.showModal({
+      title: '创建角色',
+      content: '即将开始创建一个新的角色卡，是否继续？',
+      confirmText: '开始创建',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          wx.navigateTo({ url: '/pages/chat/chat' });
+        }
+      },
     });
   },
 
   // 点击角色卡片
   onCardTap(e: WechatMiniprogram.TouchEvent) {
     const { id, status } = e.currentTarget.dataset;
-    
+
     if (status === 'incomplete') {
       // 未完成的角色，继续编辑
-      wx.navigateTo({
-        url: `/pages/chat/chat?characterId=${id}`
-      });
+      wx.navigateTo({ url: `/pages/chat/chat?characterId=${id}` });
     } else {
       // 已完成的角色，查看详情
-      wx.navigateTo({
-        url: `/pages/preview/preview?characterId=${id}&readonly=true`
-      });
+      wx.navigateTo({ url: `/pages/preview/preview?characterId=${id}&readonly=true` });
     }
-  }
+  },
 });
