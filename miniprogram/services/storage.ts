@@ -7,14 +7,7 @@
  * 类型定义统一从 types/character.ts 导入
  */
 
-import type {
-  ICharacterCard,
-  ICharacterListItem,
-  ICharacterInfo,
-} from '../types/character';
-
-// 重新导出类型供其他模块使用
-export type { ICharacterCard, ICharacterListItem, ICharacterInfo };
+import type { ICharacterCard } from '../types/character';
 
 // 对话消息类型
 export interface IMessage {
@@ -23,6 +16,7 @@ export interface IMessage {
   content: string;
   images?: string[];
   timestamp: number;
+  animate?: boolean;
 }
 
 // 本地缓存键名前缀
@@ -207,9 +201,10 @@ export function getIncompleteCharacters(): ICharacterCard[] {
 // ================================================================
 
 /**
- * 保存角色卡（本地 + 云端双写）
+ * 保存角色卡（本地缓存 + 可选云端同步）
+ * @param syncCloud 是否同步到云端，默认 true；初始草稿传 false 仅存本地
  */
-export function saveCharacter(card: ICharacterCard): void {
+export function saveCharacter(card: ICharacterCard, syncCloud = true): void {
   if (!getCurrentUserId()) {
     console.warn('未登录，无法保存角色卡');
     return;
@@ -226,25 +221,10 @@ export function saveCharacter(card: ICharacterCard): void {
   }
 
   // 写入云端
-  syncCardToCloud(card).catch(err => {
-    console.warn('云端写入失败，数据已保存在本地:', err);
-  });
-}
-
-/**
- * 仅保存到本地（初始草稿，不推云端）
- */
-export function saveCharacterLocal(card: ICharacterCard): void {
-  if (!getCurrentUserId()) {
-    console.warn('未登录，无法保存角色卡');
-    return;
-  }
-  card.updatedAt = Date.now();
-  wx.setStorageSync(userKey(`${STORAGE_KEYS.CHARACTER_PREFIX}${card.id}`), card);
-  const list = getCharacterList();
-  if (!list.includes(card.id)) {
-    list.unshift(card.id);
-    wx.setStorageSync(userKey(STORAGE_KEYS.CHARACTER_LIST), list);
+  if (syncCloud) {
+    syncCardToCloud(card).catch(err => {
+      console.warn('云端写入失败，数据已保存在本地:', err);
+    });
   }
 }
 

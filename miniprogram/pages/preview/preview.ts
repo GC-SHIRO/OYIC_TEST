@@ -209,6 +209,4 @@ Page({
     });
   },
 
-  // 已由 saveCharacter 统一管理
-  updateCharacterList(_characterId: string) {},
 });

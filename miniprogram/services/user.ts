@@ -3,8 +3,6 @@
  * 管理用户登录、注册、信息更新等
  */
 
-const CLOUD_ENV = 'cloud1-0g88vkjh890eca50';
-
 export interface ICloudUser {
   openId: string;
   nickname: string;

@@ -3,7 +3,6 @@ import type { IMessage } from '../../services/storage';
 import {
   saveConversation as storageSaveConversation,
   saveCharacter,
-  saveCharacterLocal,
   getCharacter,
   getConversation,
   generateId,
@@ -11,6 +10,7 @@ import {
 } from '../../services/storage';
 import type { ICharacterCard } from '../../types/character';
 import { createEmptyCharacterInfo } from '../../types/character';
+import type { IAgentResponse } from '../../services/agent';
 import { chatWithDify, generateCharacterCard } from '../../services/agent';
 
 // 打字机效果状态（模块级变量）
@@ -111,7 +111,7 @@ Page({
       content: userText,
       timestamp: Date.now(),
       animate: true,
-    } as any;
+    };
 
     const newMessages = [...messages, userMessage];
     this.setData({
@@ -153,14 +153,14 @@ Page({
         avatar: '',
         characterInfo: createEmptyCharacterInfo(),
       };
-      saveCharacterLocal(card); // 初始草稿只存本地，不推云端
+      saveCharacter(card, false); // 初始草稿只存本地，不推云端
       this.setData({ characterId: newId });
     }
 
     // 调用 Dify API
     const response = await chatWithDify(userText, difyConversationId).catch((err: any) => {
       console.error('chatWithDify 异常:', err);
-      return { success: false, message: '', error: err?.message || String(err) } as ReturnType<typeof chatWithDify> extends Promise<infer T> ? T : never;
+      return { success: false, message: '', error: err?.message || String(err) } as IAgentResponse;
     });
 
     if (response.success && response.message) {
@@ -176,7 +176,7 @@ Page({
         content: '',
         timestamp: Date.now(),
         animate: true,
-      } as any;
+      };
 
       const updatedMessages = [...newMessages, aiMessage];
       this.setData({
@@ -196,7 +196,7 @@ Page({
         content: `调用失败: ${errDetail}`,
         timestamp: Date.now(),
         animate: true,
-      } as any;
+      };
 
       this.setData({
         messages: [...newMessages, errorMessage],

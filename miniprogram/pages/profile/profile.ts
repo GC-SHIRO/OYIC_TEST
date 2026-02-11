@@ -1,6 +1,6 @@
 // 我的 - 用户中心页面（基于云开发登录）
 import { cloudLogin, updateNickname, updateSignature, uploadAvatar, logout, isLoggedIn, getLocalUserInfo } from '../../services/user';
-import { fetchCharactersFromCloud, getCompletedCharacters, getCurrentUserId } from '../../services/storage';
+import { fetchCharactersFromCloud, getCompletedCharacters, getCurrentUserId, PLACEHOLDER_IMAGE } from '../../services/storage';
 import type { ICharacterCard } from '../../types/character';
 
 interface IWork {
@@ -392,7 +392,7 @@ Page({
     return cards.map(card => ({
       id: card.id,
       name: card.characterInfo.name,
-      image: card.avatar || '/assets/images/character_placeholder.png',
+      image: card.avatar || PLACEHOLDER_IMAGE,
       date: this.formatDate(card.createdAt || Date.now()),
     }));
   },
