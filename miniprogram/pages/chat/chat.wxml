@@ -31,7 +31,11 @@
         </view>
         <view class="message-content">
           <view class="message-bubble">
-            <text>{{item.content}}</text>
+            <view wx:if="{{item.pending}}" class="typing-row">
+              <text>AI正在思考中</text>
+              <t-loading theme="dots" size="28rpx" />
+            </view>
+            <text wx:else>{{item.content}}</text>
           </view>
           <!-- 图片消息 -->
           <view wx:if="{{item.images && item.images.length > 0}}" class="message-images">
@@ -49,17 +53,6 @@
         </view>
       </view>
       
-      <!-- AI 正在输入 -->
-      <view wx:if="{{isTyping}}" class="message message-ai">
-        <view class="message-avatar">
-          <text>AI</text>
-        </view>
-        <view class="message-content">
-          <view class="message-bubble typing-bubble">
-            <t-loading theme="dots" size="40rpx" />
-          </view>
-        </view>
-      </view>
     </view>
     
     <!-- 底部占位，防止输入栏遮挡 -->

@@ -9,14 +9,12 @@ const db = cloud.database();
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext();
   const openId = wxContext.OPENID;
-  const { action, characterId, messages } = event;
+  const { action, characterId } = event;
 
   try {
     switch (action) {
       case 'get':
         return await getConversation(openId, characterId);
-      case 'save':
-        return await saveConversation(openId, characterId, messages);
       case 'delete':
         return await deleteConversation(openId, characterId);
       default:
@@ -60,54 +58,6 @@ async function getConversation(openId, characterId) {
       messages: record?.messages || [],
     }
   };
-}
-
-async function saveConversation(openId, characterId, messages) {
-  if (!characterId) return { code: -1, message: '缺少 characterId' };
-
-  const data = {
-    _openid: openId,
-    characterId,
-    messages: Array.isArray(messages) ? messages : [],
-    updatedAt: db.serverDate(),
-  };
-
-  const updateRes = await db.collection('conversations').where({
-    _openid: openId,
-    characterId,
-  }).update({ data });
-
-  const updated = updateRes.stats?.updated || 0;
-  if (updated > 0) {
-    return { code: 0, message: 'ok' };
-  }
-
-  const legacyRes = await db.collection('conversations')
-    .where({ characterId })
-    .orderBy('updatedAt', 'desc')
-    .limit(1)
-    .get();
-  const legacy = legacyRes.data && legacyRes.data.length > 0 ? legacyRes.data[0] : null;
-  if (legacy && legacy._id) {
-    await db.collection('conversations').doc(legacy._id).update({
-      data: {
-        _openid: openId,
-        characterId,
-        messages: Array.isArray(messages) ? messages : [],
-        updatedAt: db.serverDate(),
-      }
-    });
-    return { code: 0, message: 'ok' };
-  }
-
-  await db.collection('conversations').add({
-    data: {
-      ...data,
-      createdAt: db.serverDate(),
-    }
-  });
-
-  return { code: 0, message: 'ok' };
 }
 
 async function deleteConversation(openId, characterId) {

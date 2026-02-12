@@ -418,20 +418,22 @@ Page({
 
   /** 本地缓存快速渲染（首屏用） */
   renderWorksFromLocal() {
-    const cards = getCompletedCharacters();
-    this.setData({ works: this.cardsToWorks(cards) });
+    this.setWorks(getCompletedCharacters());
   },
 
   /** 从云端拉取作品列表 */
   async loadWorksFromCloud() {
     try {
       const allCards = await fetchCharactersFromCloud();
-      const completedCards = allCards.filter(c => c.status === 'completed');
-      this.setData({ works: this.cardsToWorks(completedCards) });
+      this.setWorks(allCards.filter(c => c.status === 'completed'));
     } catch (err) {
       console.error('云端加载作品失败，使用本地缓存:', err);
       this.renderWorksFromLocal();
     }
+  },
+
+  setWorks(cards: ICharacterCard[]) {
+    this.setData({ works: this.cardsToWorks(cards) });
   },
 
   cardsToWorks(cards: ICharacterCard[]): IWork[] {

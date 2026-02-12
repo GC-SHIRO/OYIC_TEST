@@ -68,7 +68,7 @@ miniprogram-1/
 │   │   │   ├── home.wxss                  #        卡片样式、渐变背景、动画
 │   │   │   └── home.json                  #        页面组件声明
 │   │   ├── chat/                          #    💬 AI 对话 — 创建角色
-│   │   │   ├── chat.ts                    #        Dify 对话交互、打字机效果、对话持久化
+│   │   │   ├── chat.ts                    #        Dify 对话交互、pending 占位、打字机显示
 │   │   │   ├── chat.wxml                  #        聊天气泡、输入栏、悬浮确认按钮
 │   │   │   ├── chat.wxss                  #        消息样式、键盘适配
 │   │   │   └── chat.json                  #        页面组件声明
@@ -167,7 +167,7 @@ miniprogram-1/
 
 1. **创建角色**：用户在 Chat 页输入灵感 → `agent.ts` 调用 `difyChat` 云函数 → 云函数发起 SSE 流式请求到 Dify API → AI 回复通过打字机效果逐字显示
 2. **生成角色卡**：用户点击确认 → 发送 `Give_Result` 指令 → Dify 返回结构化 JSON → `agent.ts` 解析并标准化 → 跳转 Preview 页
-3. **数据持久化**：本地缓存即时写入 + 异步云端同步（`storage.ts` 双写策略），网络异常时本地缓存降级兜底
+3. **数据持久化**：角色卡草稿由云端创建（`characterCard.createDraft`）；对话结果由 `difyChat` 后端兜底入库，本地缓存仅用于首屏加速与离线降级
 
 ---
 
@@ -187,8 +187,9 @@ miniprogram-1/
 仿 AI 聊天界面，与 Dify Agent 实时对话创建角色。
 
 - **消息系统**：用户消息 / AI 消息双气泡布局，支持图片消息
+- **等待占位**：发送后立即插入 AI `pending` 占位气泡，避免“无反馈等待”
 - **打字机效果**：AI 回复逐字显示（`streamDisplayMessage`），可随时中断
-- **对话持久化**：对话记录保存在本地 Storage，支持退出后恢复
+- **对话持久化**：后端 `difyChat` 写入云端对话，本地仅做缓存加速；再次进入优先读云端并自动补齐欢迎语
 - **角色卡生成**：右上角悬浮确认按钮触发 `Give_Result` → Dify 返回 JSON → 解析后跳转 Preview
 - **键盘适配**：输入栏跟随软键盘浮动，`adjust-position: false` + 手动计算偏移
 
@@ -251,10 +252,10 @@ miniprogram-1/
 |------|------|
 | `fetchCharactersFromCloud()` | 从云端拉取所有角色卡（核心），同步更新本地缓存 |
 | `fetchCharacterFromCloud(id)` | 从云端拉取单个角色卡 |
-| `saveCharacter(card)` | 本地 + 云端双写 |
-| `saveCharacterLocal(card)` | 仅本地保存（初始草稿） |
+| `createCharacterDraftInCloud()` | 在云端创建空白草稿卡并回填本地缓存 |
+| `saveCharacter(card)` | 角色卡本地缓存 + 云端更新 |
 | `deleteCharacter(id)` | 本地 + 云端双删 |
-| `fetchConversationFromCloud(id)` / `saveConversation(id, msgs)` | 对话历史（云端为主 + 本地缓存） |
+| `fetchConversationFromCloud(id)` / `saveConversation(id, msgs)` | 对话历史（云端为主，本地仅缓存，不再前端写云） |
 | `getCurrentUserId()` | 获取当前登录用户 openId |
 
 ### user.ts — 用户服务
@@ -278,9 +279,9 @@ miniprogram-1/
 |--------|------|------|
 | **login** | 默认 | 用户登录 / 自动注册。查询 `users` 集合，已有用户更新登录时间，新用户赠送 10 次余额 |
 | **billing** | 默认 | 创作点计费与账单服务。返回余额/当日消耗/本月消耗、充值方案与活动配置，记录账单明细 |
-| **conversation** | 默认 | 对话记录读写。支持 `get` / `save` / `delete`，云端为主，本地缓存加速 |
-| **difyChat** | 120s | Dify API 安全代理。支持 `chat`（SSE 流式对话）和 `ping`（连通性测试含 DNS + HTTPS 检测）两种 action |
-| **characterCard** | 30s | 角色卡 CRUD。支持 `create` / `update` / `get` / `list` / `delete` 操作，数据存入 `characters` 集合，按 `_openid` 隔离 |
+| **conversation** | 默认 | 对话记录读写。当前前端主要使用 `get`（删除流程仍调用 `delete`） |
+| **difyChat** | 120s | Dify API 安全代理。支持 `chat`（SSE 流式对话）和 `ping`；`chat` 成功后后端兜底写入 `conversations` |
+| **characterCard** | 30s | 角色卡 CRUD。支持 `createDraft` / `create` / `update` / `get` / `list` / `delete` 操作，数据存入 `characters` 集合 |
 | **updateUser** | 默认 | 增量更新用户字段（nickname / avatar / signature），操作 `users` 集合 |
 
 ### 云数据库集合
@@ -300,7 +301,7 @@ miniprogram-1/
 
 ```typescript
 interface ICharacterCard {
-  id: string;                    // 卡片 ID（前端生成，时间戳 + 随机串）
+  id: string;                    // 卡片 ID（云端创建草稿时生成）
   createdAt: number;             // 创建时间戳
   updatedAt: number;             // 更新时间戳
   creatorId?: string;            // 创建者 openId

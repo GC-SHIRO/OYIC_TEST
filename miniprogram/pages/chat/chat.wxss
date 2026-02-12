@@ -159,8 +159,11 @@ page {
   border: 2rpx solid rgba(229, 231, 235, 0.9);
 }
 
-.typing-bubble {
-  padding: 20rpx 40rpx;
+.typing-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  color: #6b7280;
 }
 
 /* 用户消息（右侧） */

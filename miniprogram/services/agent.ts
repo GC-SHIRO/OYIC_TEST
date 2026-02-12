@@ -43,7 +43,8 @@ export interface IGenerateResponse {
 export async function chatWithDify(
   query: string,
   conversationId?: string,
-  cardId?: string
+  cardId?: string,
+  requestId?: string,
 ): Promise<IAgentResponse> {
   try {
     const res = await (wx.cloud.callFunction as any)({
@@ -53,6 +54,7 @@ export async function chatWithDify(
         query,
         conversationId: conversationId || '',
         cardId: cardId || '',
+        requestId: requestId || '',
       },
       timeout: 120000, // 客户端等待 120 秒
     });
@@ -93,7 +95,12 @@ export async function generateCharacterCard(
   cardId?: string
 ): Promise<IGenerateResponse> {
   try {
-    const response = await chatWithDify('Give_Result', conversationId, cardId);
+    const response = await chatWithDify(
+      'Give_Result',
+      conversationId,
+      cardId,
+      `give_result_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    );
 
     if (!response.success) {
       return { success: false, error: response.error || '生成失败' };

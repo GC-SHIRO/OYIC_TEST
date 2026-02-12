@@ -43,11 +43,7 @@ Page({
 
   /** 从本地缓存快速渲染（首屏用） */
   renderFromLocal() {
-    const completed = getCompletedCharacters().map(toListItem);
-    const incomplete = getIncompleteCharacters()
-      .filter(c => c.characterInfo?.name || c.conversationId)
-      .map(toListItem);
-    this.setCharacters(completed, incomplete);
+    this.setCharactersByCards(getCompletedCharacters(), getIncompleteCharacters());
   },
 
   /** 从云端拉取角色卡并渲染 */
@@ -55,14 +51,9 @@ Page({
     this.setData({ loading: true });
     try {
       const cards = await fetchCharactersFromCloud();
-      const completed = cards
-        .filter(c => c.status === 'completed')
-        .map(toListItem);
-      const incomplete = cards
-        .filter(c => c.status === 'incomplete')
-        .filter(c => c.characterInfo?.name || c.conversationId)
-        .map(toListItem);
-      this.setCharacters(completed, incomplete);
+      const completed = cards.filter(c => c.status === 'completed');
+      const incomplete = cards.filter(c => c.status === 'incomplete');
+      this.setCharactersByCards(completed, incomplete);
     } catch (err) {
       console.error('云端加载失败，使用本地缓存:', err);
       this.renderFromLocal();
@@ -81,6 +72,11 @@ Page({
       completedCharacters: completed.map(ensureAvatar),
       incompleteCharacters: incomplete.map(ensureAvatar),
     });
+  },
+
+  setCharactersByCards(completedCards: ICharacterCard[], incompleteCards: ICharacterCard[]) {
+    const visibleIncomplete = incompleteCards.filter(card => card.characterInfo?.name || card.conversationId);
+    this.setCharacters(completedCards.map(toListItem), visibleIncomplete.map(toListItem));
   },
 
   // 点击新建角色 - 弹窗确认（需先登录）

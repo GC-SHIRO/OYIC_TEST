@@ -18,6 +18,8 @@ export interface IMessage {
   timestamp: number;
   animate?: boolean;
   transient?: boolean;
+  pending?: boolean;
+  requestId?: string;
   userId?: string;
 }
 
@@ -165,6 +167,49 @@ export async function fetchCharacterFromCloud(characterId: string): Promise<ICha
   return getCharacter(characterId);
 }
 
+/**
+ * 云端创建空白角色卡，返回并缓存到本地
+ */
+export async function createCharacterDraftInCloud(): Promise<ICharacterCard | null> {
+  if (!getCurrentUserId()) return null;
+
+  try {
+    const res = await wx.cloud.callFunction({
+      name: 'characterCard',
+      data: { action: 'createDraft' },
+    });
+
+    const result = res.result as any;
+    if (result.code === 0 && result.data) {
+      const cloud = result.data;
+      const card: ICharacterCard = {
+        id: cloud.cardId,
+        status: cloud.status || 'incomplete',
+        conversationId: cloud.conversationId || '',
+        avatar: cloud.avatar || '',
+        characterInfo: cloud.characterInfo || {},
+        createdAt: toTimestamp(cloud.createdAt),
+        updatedAt: toTimestamp(cloud.updatedAt),
+        creatorId: getCurrentUserId(),
+      };
+
+      // 更新本地缓存
+      wx.setStorageSync(userKey(`${STORAGE_KEYS.CHARACTER_PREFIX}${card.id}`), card);
+      const list = getCharacterList();
+      if (!list.includes(card.id)) {
+        list.unshift(card.id);
+        wx.setStorageSync(userKey(STORAGE_KEYS.CHARACTER_LIST), list);
+      }
+
+      return card;
+    }
+  } catch (err) {
+    console.warn('云端创建角色卡失败:', err);
+  }
+
+  return null;
+}
+
 // ================================================================
 //  本地缓存读取（仅用于离线降级 / 首屏快速渲染）
 // ================================================================
@@ -282,12 +327,15 @@ export async function fetchConversationFromCloud(characterId: string): Promise<I
 
     const result = res.result as any;
     if (result.code === 0 && result.data) {
-      const messages = Array.isArray(result.data.messages) ? result.data.messages : [];
+      const cloudMessages = Array.isArray(result.data.messages) ? result.data.messages : [];
       // 更新本地缓存（仅在已知用户时）
       if (getCurrentUserId()) {
-        wx.setStorageSync(userKey(`${STORAGE_KEYS.CONVERSATION_PREFIX}${characterId}`), messages);
+        const localMessages = getConversationLocal(characterId);
+        const mergedMessages = mergeConversationMessages(cloudMessages, localMessages);
+        wx.setStorageSync(userKey(`${STORAGE_KEYS.CONVERSATION_PREFIX}${characterId}`), mergedMessages);
+        return mergedMessages;
       }
-      return messages;
+      return cloudMessages;
     }
   } catch (err) {
     console.warn('云端对话拉取失败，降级本地缓存:', err);
@@ -305,10 +353,7 @@ export function saveConversation(characterId: string, messages: IMessage[]): voi
   if (!getCurrentUserId()) return;
   // 先写本地缓存，加速首屏
   wx.setStorageSync(userKey(`${STORAGE_KEYS.CONVERSATION_PREFIX}${characterId}`), messages);
-  // 异步同步到云端
-  syncConversationToCloud(characterId, messages).catch(err => {
-    console.warn('云端对话写入失败，已保留本地缓存:', err);
-  });
+  // 不在前端写云端，对话由后端兜底写入
 }
 
 // ================================================================
@@ -358,13 +403,6 @@ async function syncCardToCloud(card: ICharacterCard): Promise<void> {
   }
 }
 
-async function syncConversationToCloud(characterId: string, messages: IMessage[]): Promise<void> {
-  await wx.cloud.callFunction({
-    name: 'conversation',
-    data: { action: 'save', characterId, messages },
-  });
-}
-
 async function removeConversationFromCloud(characterId: string): Promise<void> {
   await wx.cloud.callFunction({
     name: 'conversation',
@@ -381,14 +419,42 @@ function toTimestamp(val: any): number {
   return 0;
 }
 
+function mergeConversationMessages(cloudMessages: IMessage[], localMessages: IMessage[]): IMessage[] {
+  const merged = new Map<string, IMessage>();
+
+  const upsert = (message: IMessage) => {
+    if (!message || !message.id) return;
+    const existing = merged.get(message.id);
+    if (!existing) {
+      merged.set(message.id, message);
+      return;
+    }
+
+    if (existing.pending && !message.pending) {
+      merged.set(message.id, message);
+      return;
+    }
+
+    if (!existing.pending && message.pending) {
+      return;
+    }
+
+    if ((message.content || '').length > (existing.content || '').length) {
+      merged.set(message.id, message);
+    }
+  };
+
+  cloudMessages.forEach(upsert);
+  localMessages.forEach(upsert);
+
+  return Array.from(merged.values())
+    .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+}
+
 // ================================================================
 //  工具函数
 // ================================================================
 
 export function clearAllData(): void {
   wx.clearStorageSync();
-}
-
-export function generateId(): string {
-  return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }

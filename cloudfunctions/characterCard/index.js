@@ -18,6 +18,8 @@ exports.main = async (event, context) => {
     switch (action) {
       case 'create':
         return await createCard(event, openId)
+      case 'createDraft':
+        return await createDraftCard(openId)
       case 'update':
         return await updateCard(event, openId)
       case 'get':
@@ -36,6 +38,32 @@ exports.main = async (event, context) => {
       message: '操作失败',
       error: err.message || String(err)
     }
+  }
+}
+
+/**
+ * 创建空白角色卡（云端生成 cardId）
+ */
+async function createDraftCard(openId) {
+  const cardId = generateCardId()
+  const now = db.serverDate()
+  const record = {
+    cardId,
+    _openid: openId,
+    status: 'incomplete',
+    conversationId: '',
+    avatar: '',
+    characterInfo: buildEmptyCharacterInfo(),
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  const res = await db.collection('characters').add({ data: record })
+
+  return {
+    code: 0,
+    message: '创建成功',
+    data: { _id: res._id, ...record }
   }
 }
 
@@ -167,5 +195,31 @@ async function deleteCard(event, openId) {
     code: 0,
     message: '删除成功',
     data: { removed: res.stats.removed }
+  }
+}
+
+function generateCardId() {
+  const rand = Math.random().toString(36).slice(2, 10)
+  return `${Date.now()}_${rand}`
+}
+
+function buildEmptyCharacterInfo() {
+  return {
+    name: '',
+    gender: '',
+    species: '',
+    introduction: '',
+    personalityTags: [],
+    appearance: { hairColor: '', eyeColor: '', detail: '' },
+    personality: '',
+    backstory: '',
+    radar: {
+      extroversion: 0.5,
+      rationality: 0.5,
+      kindness: 0.5,
+      courage: 0.5,
+      openness: 0.5,
+      responsibility: 0.5,
+    },
   }
 }

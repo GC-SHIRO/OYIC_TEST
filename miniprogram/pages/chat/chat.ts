@@ -4,21 +4,23 @@ import {
   saveConversation as storageSaveConversation,
   saveCharacter,
   getCharacter,
+  createCharacterDraftInCloud,
   fetchConversationFromCloud,
   getConversationLocal,
   getCurrentUserId,
-  generateId,
   PLACEHOLDER_IMAGE,
 } from '../../services/storage';
-import type { ICharacterCard } from '../../types/character';
-import { createEmptyCharacterInfo } from '../../types/character';
 import type { IAgentResponse } from '../../services/agent';
 import { chatWithDify, generateCharacterCard } from '../../services/agent';
+
+const WELCOME_CONTENT = '你好！我是你的角色创作助手\n\n告诉我你的想法吧！可以是角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~';
 
 // 打字机效果状态（模块级变量）
 let _typewriterTimer: any = null;
 let _typewriterFullText = '';
 let _typewriterMsgIndex = -1;
+let _pendingBlockModalShowing = false;
+let _pendingSyncTimer: any = null;
 
 Page({
   data: {
@@ -26,8 +28,8 @@ Page({
     difyConversationId: '',
     inputValue: '',
     messages: [] as IMessage[],
-    isTyping: false,
     isGenerating: false,
+    isSending: false,
     scrollTop: 0,
     keyboardHeight: 0,
   },
@@ -41,12 +43,20 @@ Page({
     }
   },
 
+  onShow() {
+    this.startPendingSyncIfNeeded();
+  },
+
+  onHide() {
+    this.stopPendingSync();
+  },
+
   // 显示欢迎消息
   showWelcomeMessage() {
     const welcomeMessage: IMessage = {
       id: 'welcome',
       role: 'ai',
-      content: '你好！我是你的角色创作助手\n\n告诉我你的想法吧！可以是角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~',
+      content: WELCOME_CONTENT,
       timestamp: Date.now(),
       userId: 'ai',
     };
@@ -57,16 +67,14 @@ Page({
   // 加载已有对话（恢复 difyConversationId）
   async loadExistingConversation(characterId: string) {
     // 云端优先，失败则回退本地缓存
-    const messages = await fetchConversationFromCloud(characterId);
-    if (messages && messages.length > 0) {
-      this.setData({ messages });
+    const cloudMessages = await fetchConversationFromCloud(characterId);
+    const localMessages = getConversationLocal(characterId);
+    const messages = mergeConversationMessages(cloudMessages || [], localMessages || []);
+
+    if (messages.length > 0) {
+      this.setData({ messages: ensureWelcomeMessage(messages) });
     } else {
-      const cached = getConversationLocal(characterId);
-      if (cached.length > 0) {
-        this.setData({ messages: cached });
-      } else {
-        this.showWelcomeMessage();
-      }
+      this.showWelcomeMessage();
     }
 
     // 从角色卡恢复 Dify 会话 ID
@@ -76,6 +84,7 @@ Page({
     }
 
     this.scrollToBottom();
+    this.startPendingSyncIfNeeded();
   },
 
   // 输入框变化
@@ -105,123 +114,199 @@ Page({
 
   // 发送消息
   async onSend() {
-    const { inputValue, messages, difyConversationId, characterId } = this.data;
+    const { inputValue, messages, difyConversationId, characterId, isSending } = this.data;
     if (!inputValue.trim()) return;
+    if (isSending) {
+      wx.showToast({ title: '上一条消息处理中', icon: 'none' });
+      return;
+    }
+    if (hasRecentPendingMessage(messages)) {
+      this.showPendingMessageBlockedModal();
+      return;
+    }
+
+    this.setData({ isSending: true });
 
     // 负余额提示：允许继续，但先提醒用户
     const canProceed = await this.checkBalanceWarning();
-    if (!canProceed) return;
+    if (!canProceed) {
+      this.setData({ isSending: false });
+      return;
+    }
 
     // 如果打字机正在运行，先完成它
     this.finishTypewriter();
 
     const userText = inputValue.trim();
+    const requestId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
-    const userMessage: IMessage = {
-      id: `user_${Date.now()}`,
-      role: 'user',
-      content: userText,
-      timestamp: Date.now(),
-      animate: true,
-      userId: getCurrentUserId(),
-    };
-
-    const newMessages = [...messages, userMessage];
-    this.setData({
-      messages: newMessages,
-      inputValue: '',
-      isTyping: true,
-    });
-    this.scrollToBottom();
-
-    // 首次发送时，创建未完成角色卡（需要登录）
-    let activeCardId = characterId;
-    if (!activeCardId) {
-      const app = getApp<IAppOption>();
-      if (!app.globalData.openId) {
-        this.setData({ isTyping: false });
-        wx.showModal({
-          title: '请先登录',
-          content: '创建角色卡需要先登录账号',
-          confirmText: '去登录',
-          cancelText: '取消',
-          success: (res) => {
-            if (res.confirm) {
-              wx.navigateBack();
-              setTimeout(() => wx.switchTab({ url: '/pages/profile/profile' }), 300);
-            }
-          },
-        });
-        return;
-      }
-
-      const newId = generateId();
-      const now = Date.now();
-      const card: ICharacterCard = {
-        id: newId,
-        createdAt: now,
-        updatedAt: now,
-        creatorId: app.globalData.openId,
-        status: 'incomplete',
-        conversationId: '',
-        avatar: '',
-        characterInfo: createEmptyCharacterInfo(),
+    try {
+      const userMessage: IMessage = {
+        id: `user_${requestId}`,
+        role: 'user',
+        content: userText,
+        timestamp: Date.now(),
+        animate: true,
+        requestId,
+        userId: getCurrentUserId(),
       };
-      saveCharacter(card, false); // 初始草稿只存本地，不推云端
-      activeCardId = newId;
-      this.setData({ characterId: newId });
-    }
 
-    // 调用 Dify API
-    const response = await chatWithDify(userText, difyConversationId, activeCardId).catch((err: any) => {
-      console.error('chatWithDify 异常:', err);
-      return { success: false, message: '', error: err?.message || String(err) } as IAgentResponse;
-    });
-
-    if (response.success && response.message) {
-      const newConvId = response.conversationId || difyConversationId;
-      if (newConvId && newConvId !== difyConversationId) {
-        this.setData({ difyConversationId: newConvId });
-        this.updateCardConversationId(newConvId);
-      }
-
-      const aiMessage: IMessage = {
-        id: `ai_${Date.now()}`,
+      const newMessages = [...messages, userMessage];
+      const aiPlaceholder: IMessage = {
+        id: `ai_${requestId}`,
         role: 'ai',
         content: '',
         timestamp: Date.now(),
         animate: true,
+        pending: true,
+        requestId,
         userId: 'ai',
       };
 
-      const updatedMessages = [...newMessages, aiMessage];
+      const updatedMessages = [...newMessages, aiPlaceholder];
       this.setData({
         messages: updatedMessages,
-        isTyping: false,
+        inputValue: '',
       });
-
-      // 启动打字机流式显示
-      this.streamDisplayMessage(response.message, updatedMessages.length - 1);
-    } else {
-      const errDetail = response.error || response.message || '未知错误';
-      console.error('Dify 调用失败，详细原因:', errDetail);
-
-      const errorMessage: IMessage = {
-        id: `ai_${Date.now()}`,
-        role: 'ai',
-        content: `调用失败: ${errDetail}`,
-        timestamp: Date.now(),
-        animate: true,
-        transient: true,
-        userId: 'ai',
-      };
-
-      this.setData({
-        messages: [...newMessages, errorMessage],
-        isTyping: false,
-      });
+      await new Promise<void>((resolve) => wx.nextTick(resolve));
       this.scrollToBottom();
+
+      const pendingId = aiPlaceholder.id;
+
+      // 首次发送时，创建未完成角色卡（需要登录）
+      let activeCardId = characterId;
+      if (!activeCardId) {
+        const app = getApp<IAppOption>();
+        if (!app.globalData.openId) {
+          this.resolvePendingMessage(pendingId, {
+            pending: false,
+            content: '请先登录后再创建角色卡',
+            transient: true,
+          });
+          wx.showModal({
+            title: '请先登录',
+            content: '创建角色卡需要先登录账号',
+            confirmText: '去登录',
+            cancelText: '取消',
+            success: (res) => {
+              if (res.confirm) {
+                wx.navigateBack();
+                setTimeout(() => wx.switchTab({ url: '/pages/profile/profile' }), 300);
+              }
+            },
+          });
+          return;
+        }
+
+        const draft = await createCharacterDraftInCloud();
+        if (!draft) {
+          this.resolvePendingMessage(pendingId, {
+            pending: false,
+            content: '创建角色卡失败，请重试',
+            transient: true,
+          });
+          wx.showToast({ title: '创建角色卡失败', icon: 'none' });
+          return;
+        }
+
+        // 初始草稿已在云端创建，本地仅缓存加速
+        saveCharacter(draft, false);
+        activeCardId = draft.id;
+        this.setData({ characterId: draft.id });
+      }
+
+      // 调用 Dify API
+      const response = await chatWithDify(userText, difyConversationId, activeCardId, requestId).catch((err: any) => {
+        console.error('chatWithDify 异常:', err);
+        return { success: false, message: '', error: err?.message || String(err) } as IAgentResponse;
+      });
+
+      if (response.success && response.message) {
+        const newConvId = response.conversationId || difyConversationId;
+        if (newConvId && newConvId !== difyConversationId) {
+          this.setData({ difyConversationId: newConvId });
+          this.updateCardConversationId(newConvId);
+        }
+
+        const msgIndex = this.findMessageIndexById(pendingId);
+        if (msgIndex >= 0) {
+          this.setData({ [`messages[${msgIndex}].pending`]: false });
+          // 启动打字机流式显示
+          this.streamDisplayMessage(response.message, msgIndex);
+        } else {
+          const fallbackMessages = this.appendAiFallbackMessage(requestId);
+          this.setData({ messages: fallbackMessages });
+          this.streamDisplayMessage(response.message, fallbackMessages.length - 1);
+        }
+      } else {
+        const errDetail = response.error || response.message || '未知错误';
+        console.error('Dify 调用失败，详细原因:', errDetail);
+
+        const msgIndex = this.findMessageIndexById(pendingId);
+        if (msgIndex >= 0) {
+          this.setData({
+            [`messages[${msgIndex}].pending`]: false,
+            [`messages[${msgIndex}].content`]: `调用失败: ${errDetail}`,
+            [`messages[${msgIndex}].transient`]: true,
+          });
+        } else {
+          const errorMessage = {
+            ...this.appendAiFallbackMessage(requestId).slice(-1)[0],
+            content: `调用失败: ${errDetail}`,
+            transient: true,
+          } as IMessage;
+          this.setData({ messages: [...this.data.messages, errorMessage] });
+        }
+        this.scrollToBottom();
+      }
+    } finally {
+      this.setData({ isSending: false });
     }
+  },
+
+  findMessageIndexById(messageId: string): number {
+    return this.data.messages.findIndex((msg) => msg.id === messageId);
+  },
+
+  resolvePendingMessage(messageId: string, patch: Partial<IMessage>) {
+    const msgIndex = this.findMessageIndexById(messageId);
+    if (msgIndex < 0) return;
+
+    const updatePayload: Record<string, any> = {};
+    Object.entries(patch).forEach(([key, value]) => {
+      updatePayload[`messages[${msgIndex}].${key}`] = value;
+    });
+    this.setData(updatePayload);
+  },
+
+  appendAiFallbackMessage(requestId?: string) {
+    const fallbackMessage: IMessage = {
+      id: requestId ? `ai_${requestId}` : `ai_${Date.now()}`,
+      role: 'ai',
+      content: '',
+      timestamp: Date.now(),
+      animate: true,
+      requestId,
+      userId: 'ai',
+    };
+    return [...this.data.messages, fallbackMessage];
+  },
+
+  showPendingMessageBlockedModal() {
+    if (_pendingBlockModalShowing) return;
+    _pendingBlockModalShowing = true;
+    wx.showModal({
+      title: '消息处理中',
+      content: '当前有一条消息正在由 AI 处理，请等待该消息完成后再发送新内容。',
+      showCancel: false,
+      confirmText: '我知道了',
+      success: () => {
+        _pendingBlockModalShowing = false;
+      },
+      fail: () => {
+        _pendingBlockModalShowing = false;
+      },
+    });
   },
 
   // 更新角色卡的 conversationId
@@ -297,7 +382,12 @@ Page({
   // 确认生成角色卡
   async onConfirm() {
     this.finishTypewriter();
-    const { messages, difyConversationId, characterId } = this.data;
+    const { messages, difyConversationId, characterId, isSending } = this.data;
+
+    if (isSending) {
+      wx.showToast({ title: '请等待当前回复完成', icon: 'none' });
+      return;
+    }
 
     if (messages.length <= 1) {
       wx.showToast({ title: '请先描述你的角色', icon: 'none' });
@@ -414,8 +504,43 @@ Page({
 
   // 页面卸载时清理
   onUnload() {
+    this.stopPendingSync();
     this.finishTypewriter();
     this.saveConversation();
+  },
+
+  startPendingSyncIfNeeded() {
+    const { characterId, messages, isSending } = this.data;
+    if (!characterId || isSending) return;
+    if (!hasAnyPendingMessage(messages)) {
+      this.stopPendingSync();
+      return;
+    }
+    if (_pendingSyncTimer) return;
+
+    _pendingSyncTimer = setInterval(async () => {
+      if (this.data.isSending) return;
+      const { characterId: currentId } = this.data;
+      if (!currentId) return;
+
+      const cloudMessages = await fetchConversationFromCloud(currentId);
+      const merged = ensureWelcomeMessage(cloudMessages || []);
+      if (!sameMessageSnapshot(this.data.messages, merged)) {
+        this.setData({ messages: merged });
+        this.scrollToBottom();
+      }
+
+      if (!hasAnyPendingMessage(merged)) {
+        this.stopPendingSync();
+      }
+    }, 1800);
+  },
+
+  stopPendingSync() {
+    if (_pendingSyncTimer) {
+      clearInterval(_pendingSyncTimer);
+      _pendingSyncTimer = null;
+    }
   },
 
   // 滚动到页面底部
@@ -443,6 +568,11 @@ Page({
     _typewriterFullText = fullText;
     _typewriterMsgIndex = msgIndex;
 
+    // 关闭入场动画，避免每次 setData 触发闪烁
+    this.setData({
+      [`messages[${msgIndex}].animate`]: false,
+    });
+
     let charIndex = 0;
     let scrollTick = 0;
     // 根据文本长度调整每次显示字符数和间隔
@@ -456,6 +586,7 @@ Page({
       this.setData({
         [`messages[${msgIndex}].content`]: fullText.substring(0, charIndex),
       });
+
 
       // 每 500ms 滚动一次 + 完成时滚动
       if (scrollTick % 10 === 0 || charIndex >= fullText.length) {
@@ -548,6 +679,81 @@ function sanitizeMessages(messages: IMessage[]): IMessage[] {
     if (message.role === 'ai' && looksLikeResultJson(content)) return false;
     return true;
   });
+}
+
+function mergeConversationMessages(cloudMessages: IMessage[], localMessages: IMessage[]): IMessage[] {
+  const merged = new Map<string, IMessage>();
+
+  const pushMessage = (message: IMessage) => {
+    if (!message || !message.id) return;
+    const existing = merged.get(message.id);
+    if (!existing) {
+      merged.set(message.id, message);
+      return;
+    }
+
+    if (existing.pending && !message.pending) {
+      merged.set(message.id, message);
+      return;
+    }
+
+    if (!existing.pending && message.pending) {
+      return;
+    }
+
+    if ((message.content || '').length > (existing.content || '').length) {
+      merged.set(message.id, message);
+    }
+  };
+
+  cloudMessages.forEach(pushMessage);
+  localMessages.forEach(pushMessage);
+
+  const result = Array.from(merged.values());
+  result.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  return result;
+}
+
+function hasRecentPendingMessage(messages: IMessage[], ttlMs = 180000): boolean {
+  const now = Date.now();
+  return messages.some((message) => {
+    if (!message.pending) return false;
+    const ts = Number(message.timestamp || 0);
+    return ts > 0 && now - ts < ttlMs;
+  });
+}
+
+function hasAnyPendingMessage(messages: IMessage[]): boolean {
+  return messages.some((message) => !!message.pending);
+}
+
+function sameMessageSnapshot(a: IMessage[], b: IMessage[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const m1 = a[i];
+    const m2 = b[i];
+    if (m1.id !== m2.id) return false;
+    if (m1.pending !== m2.pending) return false;
+    if ((m1.content || '') !== (m2.content || '')) return false;
+  }
+  return true;
+}
+
+function ensureWelcomeMessage(messages: IMessage[]): IMessage[] {
+  const normalized = [...messages];
+  const exists = normalized.some((message) => message.id === 'welcome');
+  if (exists) return normalized;
+
+  return [
+    {
+      id: 'welcome',
+      role: 'ai',
+      content: WELCOME_CONTENT,
+      timestamp: Date.now(),
+      userId: 'ai',
+    },
+    ...normalized,
+  ];
 }
 
 function looksLikeResultJson(content: string): boolean {
