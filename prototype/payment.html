@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>支付中心 - O亿C</title>
+    <style>
+      :root {
+        --bg: #f2f3f5;
+        --surface: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --silver-1: #f9fafb;
+        --silver-2: #e5e7eb;
+        --silver-3: #cbd5e1;
+        --steel-1: #6b7280;
+        --steel-2: #374151;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "PingFang SC", "MiSans", "Noto Sans SC", "Source Han Sans SC", sans-serif;
+        color: var(--text);
+        background: radial-gradient(1200px 800px at 20% -10%, #f7f8fa 0%, #f0f2f5 45%, #eef0f3 100%);
+      }
+      .app {
+        min-height: 100vh;
+        padding: 20px 18px 80px;
+      }
+      .activity-banner {
+        margin-top: 16px;
+        border-radius: 18px;
+        padding: 14px 16px;
+        background: linear-gradient(135deg, rgba(249, 250, 251, 0.95), rgba(226, 232, 240, 0.9));
+        border: 1px solid rgba(203, 213, 225, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 12px 24px rgba(17, 24, 39, 0.1);
+      }
+      .activity-text {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .activity-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #111827;
+      }
+      .activity-subtitle {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .activity-action {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--steel-2);
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.7);
+        background: rgba(255, 255, 255, 0.8);
+      }
+      .nav {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+      .back {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        display: grid;
+        place-items: center;
+        background: rgba(255, 255, 255, 0.85);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      }
+      .title {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+      .balance-card {
+        background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 60%, #cbd5e1 100%);
+        border-radius: 24px;
+        color: #111827;
+        padding: 18px 18px 16px;
+        box-shadow: 0 18px 40px rgba(17, 24, 39, 0.12);
+        position: relative;
+        overflow: hidden;
+      }
+      .balance-card::after {
+        content: "";
+        position: absolute;
+        right: -40px;
+        top: -50px;
+        width: 160px;
+        height: 160px;
+        background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.5), transparent 60%);
+        opacity: 0.55;
+      }
+      .balance-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: rgba(17, 24, 39, 0.6);
+      }
+      .balance-value {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin: 10px 0 6px;
+      }
+      .balance-value span:first-child {
+        font-size: 32px;
+        font-weight: 700;
+      }
+      .balance-value span:last-child {
+        font-size: 14px;
+        color: rgba(17, 24, 39, 0.6);
+      }
+      .balance-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        color: rgba(17, 24, 39, 0.6);
+      }
+      .balance-meta a {
+        color: #111827;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .section {
+        margin-top: 18px;
+      }
+      .section-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+        color: var(--muted);
+        margin-bottom: 10px;
+      }
+      .packs {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        width: 100%;
+        justify-items: stretch;
+        align-items: stretch;
+      }
+      .pack {
+        background: var(--surface);
+        border-radius: 18px;
+        padding: 14px 12px;
+        border: 1px solid var(--border);
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+        position: relative;
+      }
+      .pack.highlight {
+        border: 1px solid rgba(148, 163, 184, 0.7);
+        background: linear-gradient(180deg, #f9fafb, #ffffff 60%);
+      }
+      .pack-tag {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 11px;
+        color: #4b5563;
+        background: rgba(203, 213, 225, 0.5);
+        padding: 2px 8px;
+        border-radius: 999px;
+      }
+      .pack-price {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--steel-2);
+      }
+      .pack-points {
+        margin-top: 6px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .pack-bonus {
+        margin-top: 6px;
+        font-size: 12px;
+        color: var(--steel-1);
+      }
+      .cta {
+        margin-top: 18px;
+        width: 100%;
+        border: none;
+        border-radius: 18px;
+        padding: 14px 16px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #ffffff;
+        background: linear-gradient(135deg, #9ca3af 0%, #4b5563 100%);
+        box-shadow: 0 18px 36px rgba(17, 24, 39, 0.2);
+      }
+      .rules {
+        margin-top: 18px;
+        background: rgba(255, 255, 255, 0.75);
+        border: 1px dashed var(--border);
+        border-radius: 18px;
+        padding: 14px;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .rules strong {
+        color: var(--steel-2);
+      }
+      .activity-label {
+        margin-top: 18px;
+        margin-bottom: 10px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .floating {
+        position: fixed;
+        left: 18px;
+        right: 18px;
+        bottom: 16px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 18px;
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 1px solid var(--border);
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
+      }
+      .floating span {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .floating a {
+        font-size: 13px;
+        color: var(--steel-2);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      @media (min-width: 720px) {
+        .app {
+          max-width: 520px;
+          margin: 0 auto;
+          padding-top: 28px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="nav">
+        <div class="back">←</div>
+        <div class="title">支付中心</div>
+      </div>
+
+      <section class="balance-card">
+        <div class="balance-label">当前余额</div>
+        <div class="balance-value">
+          <span>1,280</span>
+          <span>创作点</span>
+        </div>
+        <div class="balance-meta">
+          <span>今日消耗 120 创作点</span>
+          <a href="usage.html">查看明细</a>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">
+          <span>充值方案</span>
+        </div>
+        <div class="packs">
+          <div class="pack">
+            <div class="pack-price">¥ 12</div>
+            <div class="pack-points">获得 1,200 创作点</div>
+            <div class="pack-bonus">新手赠送 120 创作点</div>
+          </div>
+          <div class="pack highlight">
+            <div class="pack-tag">最受欢迎</div>
+            <div class="pack-price">¥ 30</div>
+            <div class="pack-points">获得 3,500 创作点</div>
+            <div class="pack-bonus">多送 15% 创作点</div>
+          </div>
+          <div class="pack">
+            <div class="pack-price">¥ 68</div>
+            <div class="pack-points">获得 8,000 创作点</div>
+            <div class="pack-bonus">赠送 1,200 创作点</div>
+          </div>
+          <div class="pack">
+            <div class="pack-price">¥ 128</div>
+            <div class="pack-points">获得 16,000 创作点</div>
+            <div class="pack-bonus">赠送 3,000 创作点</div>
+          </div>
+        </div>
+        <button class="cta">立即充值</button>
+      </section>
+
+      <section class="rules">
+        <strong>计费规则</strong>：AI 对话每 1,000 tokens 消耗 30 创作点；角色卡生成额外消耗 80 创作点。创作点与消耗比率可在云函数配置中调整。
+      </section>
+
+      <div class="activity-label">活动</div>
+      <section class="activity-banner">
+        <div class="activity-text">
+          <span class="activity-title">分享得创作点</span>
+          <span class="activity-subtitle">每日分享群聊可领取额外创作点</span>
+        </div>
+        <span class="activity-action">立即分享</span>
+      </section>
+    </div>
+  </body>
+</html>

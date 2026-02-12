@@ -45,6 +45,10 @@ miniprogram-1/
 ├── cloudfunctions/                        # ☁️ 云函数（Node.js）
 │   ├── login/                             #    用户登录 / 自动注册
 │   │   └── index.js
+│   ├── billing/                           #    创作点计费与账单
+│   │   └── index.js
+│   ├── conversation/                      #    对话记录读写
+│   │   └── index.js
 │   ├── difyChat/                          #    Dify API 代理（SSE 流式）
 │   │   └── index.js
 │   ├── characterCard/                     #    角色卡 CRUD
@@ -207,6 +211,23 @@ miniprogram-1/
 - **我的作品**：横向滚动展示已完成角色卡，点击跳转 Preview 只读查看
 - **功能菜单**：使用指南、意见反馈、余额充值（预留）、关于、退出登录
 
+### 💳 支付中心 (pages/payment)
+
+创作点充值与余额入口。
+
+- **余额概览**：显示当前余额与今日消耗
+- **充值方案**：从云函数读取 `RECHARGE_PACKS` 配置
+- **活动入口**：展示分享活动文案
+- **明细跳转**：进入消费明细页面
+
+### 📄 消费明细 (pages/usage)
+
+创作点账单记录查询。
+
+- **账单汇总**：显示本月消耗与当前余额
+- **筛选查看**：按对话/角色卡/充值/分享分类
+- **数据来源**：读取 `usage_logs` 集合
+
 ---
 
 ## 服务层设计
@@ -233,7 +254,7 @@ miniprogram-1/
 | `saveCharacter(card)` | 本地 + 云端双写 |
 | `saveCharacterLocal(card)` | 仅本地保存（初始草稿） |
 | `deleteCharacter(id)` | 本地 + 云端双删 |
-| `getConversation(id)` / `saveConversation(id, msgs)` | 对话历史（仅本地存储） |
+| `fetchConversationFromCloud(id)` / `saveConversation(id, msgs)` | 对话历史（云端为主 + 本地缓存） |
 | `getCurrentUserId()` | 获取当前登录用户 openId |
 
 ### user.ts — 用户服务
@@ -256,6 +277,8 @@ miniprogram-1/
 | 云函数 | 超时 | 说明 |
 |--------|------|------|
 | **login** | 默认 | 用户登录 / 自动注册。查询 `users` 集合，已有用户更新登录时间，新用户赠送 10 次余额 |
+| **billing** | 默认 | 创作点计费与账单服务。返回余额/当日消耗/本月消耗、充值方案与活动配置，记录账单明细 |
+| **conversation** | 默认 | 对话记录读写。支持 `get` / `save` / `delete`，云端为主，本地缓存加速 |
 | **difyChat** | 120s | Dify API 安全代理。支持 `chat`（SSE 流式对话）和 `ping`（连通性测试含 DNS + HTTPS 检测）两种 action |
 | **characterCard** | 30s | 角色卡 CRUD。支持 `create` / `update` / `get` / `list` / `delete` 操作，数据存入 `characters` 集合，按 `_openid` 隔离 |
 | **updateUser** | 默认 | 增量更新用户字段（nickname / avatar / signature），操作 `users` 集合 |
@@ -266,6 +289,8 @@ miniprogram-1/
 |------|----------|------|
 | **users** | `_openid`, `nickname`, `avatar`, `signature`, `balance`, `loginCount`, `createdAt` | 用户信息 |
 | **characters** | `cardId`, `_openid`, `status`, `conversationId`, `avatar`, `characterInfo`, `createdAt` | 角色卡数据 |
+| **usage_logs** | `_openid`, `type`, `delta`, `balanceBefore`, `balanceAfter`, `tokens`, `createdAt` | 创作点账单明细 |
+| **conversations** | `_openid`, `characterId`, `messages`, `createdAt`, `updatedAt` | 对话记录 |
 
 ---
 
@@ -431,6 +456,33 @@ const DIFY_BASE_URL = 'https://api.dify.ai/v1';
 
 > ⚠️ API Key 仅在云函数端使用，前端通过 `wx.cloud.callFunction` 间接调用，**不暴露任何密钥**。
 
+### 创作点计费配置（比率与充值方案）
+
+计费比率与充值方案都在云函数配置文件中，修改后需重新上传对应云函数。
+
+- 主配置（充值方案、分享活动、token 计费）：
+  - [cloudfunctions/billing/billingConfig.js](cloudfunctions/billing/billingConfig.js)
+  - 可调整字段：
+    - `TOKEN_UNIT`：token 计费的统计粒度（例如 1000，表示每 1000 tokens 计费一次）
+    - `TOKEN_COST`：每个 `TOKEN_UNIT` 消耗的创作点数
+    - `CARD_GEN_COST`：角色卡生成的固定消耗创作点数
+    - `REGISTER_BONUS`：新用户注册赠送创作点数
+    - `SHARE_DAILY_BONUS`：每日分享奖励创作点数（需结合分享幂等逻辑）
+    - `RECHARGE_PACKS`：充值方案数组，字段说明：
+      - `price`：人民币金额
+      - `points`：购买得到的创作点数
+      - `bonus`：赠送创作点数（可选）
+      - `bonusText`：展示用文案（可选，例如“多送 15%”）
+    - `ACTIVITY`：活动展示文案：
+      - `title`：活动标题
+      - `subtitle`：活动副标题
+- Dify 扣费配置（对话与角色卡生成）：
+  - [cloudfunctions/difyChat/billingConfig.js](cloudfunctions/difyChat/billingConfig.js)
+- 注册奖励配置：
+  - [cloudfunctions/login/billingConfig.js](cloudfunctions/login/billingConfig.js)
+
+修改完成后，请在微信开发者工具中重新上传并部署对应云函数。
+
 ### 云开发环境
 
 ```javascript
@@ -452,10 +504,10 @@ wx.cloud.init({
 
 ## 待完成事项
 
-- [ ] 添加实际的角色头像图片资源
-- [ ] 实现聊天页图片上传功能（`onChooseImage`）
-- [ ] 多角色卡模板支持
-- [ ] 余额充值与消费闭环（v2.0）
-- [ ] 角色卡分享功能
-- [ ] 完善错误处理和加载状态反馈
-- [ ] 使用指南 / 意见反馈页面实现
+- [ ] 
+- [ ] 
+- [ ] 
+- [ ] 
+- [ ] 
+- [ ] 
+- [ ] 

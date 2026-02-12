@@ -1,5 +1,6 @@
 // 云函数入口文件
 const cloud = require('wx-server-sdk')
+const billingConfig = require('./billingConfig')
 
 cloud.init({
   env: 'cloud1-0g88vkjh890eca50'
@@ -47,21 +48,40 @@ exports.main = async (event, context) => {
       const nickname = event.nickname || ''
       const avatar = event.avatar || ''
 
+      const registerBonus = billingConfig.REGISTER_BONUS || 0
+
       const newUser = {
         _openid: openId,
         unionId: unionId,
         nickname: nickname,
         avatar: avatar,
         signature: '',
-        balance: 10, // 新用户赠送10次
+        balance: registerBonus,
         createdAt: db.serverDate(),
         lastLoginAt: db.serverDate(),
+        lastShareAt: null,
         loginCount: 1,
         status: 'active'
       }
 
       const addRes = await db.collection('users').add({
         data: newUser
+      })
+
+      await db.collection('usage_logs').add({
+        data: {
+          _openid: openId,
+          type: 'register',
+          delta: registerBonus,
+          balanceBefore: 0,
+          balanceAfter: registerBonus,
+          tokens: 0,
+          conversationId: '',
+          cardId: '',
+          source: 'system',
+          meta: {},
+          createdAt: db.serverDate(),
+        }
       })
 
       return {
@@ -72,7 +92,7 @@ exports.main = async (event, context) => {
           isNewUser: true,
           nickname: nickname,
           avatar: avatar,
-          balance: 10,
+          balance: registerBonus,
           signature: '',
           createdAt: new Date()
         }

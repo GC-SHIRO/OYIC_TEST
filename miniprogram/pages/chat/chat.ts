@@ -4,7 +4,9 @@ import {
   saveConversation as storageSaveConversation,
   saveCharacter,
   getCharacter,
-  getConversation,
+  fetchConversationFromCloud,
+  getConversationLocal,
+  getCurrentUserId,
   generateId,
   PLACEHOLDER_IMAGE,
 } from '../../services/storage';
@@ -46,19 +48,25 @@ Page({
       role: 'ai',
       content: '你好！我是你的角色创作助手\n\n告诉我你的想法吧！可以是角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~',
       timestamp: Date.now(),
+      userId: 'ai',
     };
     this.setData({ messages: [welcomeMessage] });
     this.scrollToBottom();
   },
 
   // 加载已有对话（恢复 difyConversationId）
-  loadExistingConversation(characterId: string) {
-    // 从本地恢复对话消息
-    const messages = getConversation(characterId);
+  async loadExistingConversation(characterId: string) {
+    // 云端优先，失败则回退本地缓存
+    const messages = await fetchConversationFromCloud(characterId);
     if (messages && messages.length > 0) {
       this.setData({ messages });
     } else {
-      this.showWelcomeMessage();
+      const cached = getConversationLocal(characterId);
+      if (cached.length > 0) {
+        this.setData({ messages: cached });
+      } else {
+        this.showWelcomeMessage();
+      }
     }
 
     // 从角色卡恢复 Dify 会话 ID
@@ -100,6 +108,10 @@ Page({
     const { inputValue, messages, difyConversationId, characterId } = this.data;
     if (!inputValue.trim()) return;
 
+    // 负余额提示：允许继续，但先提醒用户
+    const canProceed = await this.checkBalanceWarning();
+    if (!canProceed) return;
+
     // 如果打字机正在运行，先完成它
     this.finishTypewriter();
 
@@ -111,6 +123,7 @@ Page({
       content: userText,
       timestamp: Date.now(),
       animate: true,
+      userId: getCurrentUserId(),
     };
 
     const newMessages = [...messages, userMessage];
@@ -122,7 +135,8 @@ Page({
     this.scrollToBottom();
 
     // 首次发送时，创建未完成角色卡（需要登录）
-    if (!characterId) {
+    let activeCardId = characterId;
+    if (!activeCardId) {
       const app = getApp<IAppOption>();
       if (!app.globalData.openId) {
         this.setData({ isTyping: false });
@@ -154,11 +168,12 @@ Page({
         characterInfo: createEmptyCharacterInfo(),
       };
       saveCharacter(card, false); // 初始草稿只存本地，不推云端
+      activeCardId = newId;
       this.setData({ characterId: newId });
     }
 
     // 调用 Dify API
-    const response = await chatWithDify(userText, difyConversationId).catch((err: any) => {
+    const response = await chatWithDify(userText, difyConversationId, activeCardId).catch((err: any) => {
       console.error('chatWithDify 异常:', err);
       return { success: false, message: '', error: err?.message || String(err) } as IAgentResponse;
     });
@@ -176,6 +191,7 @@ Page({
         content: '',
         timestamp: Date.now(),
         animate: true,
+        userId: 'ai',
       };
 
       const updatedMessages = [...newMessages, aiMessage];
@@ -196,6 +212,8 @@ Page({
         content: `调用失败: ${errDetail}`,
         timestamp: Date.now(),
         animate: true,
+        transient: true,
+        userId: 'ai',
       };
 
       this.setData({
@@ -232,6 +250,7 @@ Page({
           content: '参考图片',
           images,
           timestamp: Date.now(),
+          userId: getCurrentUserId(),
         };
 
         const { messages } = this.data;
@@ -248,6 +267,7 @@ Page({
             role: 'ai',
             content: '收到你的参考图片了！我会根据这些图片帮你构建角色形象。你想要这个角色有什么特别的特征吗？',
             timestamp: Date.now(),
+            userId: 'ai',
           };
           this.setData({
             messages: [...this.data.messages, aiMessage],
@@ -289,13 +309,17 @@ Page({
       return;
     }
 
+    // 负余额提示：允许继续，但先提醒用户
+    const canProceed = await this.checkBalanceWarning();
+    if (!canProceed) return;
+
     // 显示生成中状态
     this.setData({ isGenerating: true });
     wx.showLoading({ title: '正在生成角色卡...', mask: true });
 
     try {
       // 发送 "Give_Result" 获取结构化角色卡数据
-      const result = await generateCharacterCard(difyConversationId);
+      const result = await generateCharacterCard(difyConversationId, characterId);
 
       wx.hideLoading();
       this.setData({ isGenerating: false });
@@ -467,6 +491,69 @@ Page({
   saveConversation() {
     const { messages, characterId } = this.data;
     if (!characterId) return;
-    storageSaveConversation(characterId, messages);
+    // 避免将失败提示或结果 JSON 同步到云端
+    const sanitized = sanitizeMessages(messages);
+    const hasUserMessage = sanitized.some((message) => {
+      if (message.role !== 'user') return false;
+      const content = (message.content || '').trim();
+      return content.length > 0 || (message.images && message.images.length > 0);
+    });
+    if (!hasUserMessage) return;
+    storageSaveConversation(characterId, sanitized);
+  },
+
+  // 检查创作点余额是否为负，负数时弹窗提醒
+  async checkBalanceWarning(): Promise<boolean> {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'billing',
+        data: { action: 'overview' },
+      });
+
+      const result = res.result as any;
+      if (result.code !== 0 || !result.data) return true;
+
+      const balance = Number(result.data.balance ?? 0);
+      if (balance >= 0) return true;
+
+      return await new Promise((resolve) => {
+        wx.showModal({
+          title: '创作点不足',
+          content: '当前创作点已为负数，继续对话或生成会进一步扣费。是否继续？',
+          confirmText: '继续',
+          cancelText: '去充值',
+          success: (modalRes) => {
+            if (modalRes.confirm) {
+              resolve(true);
+            } else {
+              wx.navigateTo({ url: '/pages/payment/payment' });
+              resolve(false);
+            }
+          },
+        });
+      });
+    } catch (err) {
+      console.error('获取余额失败:', err);
+      return true;
+    }
   },
 });
+
+function sanitizeMessages(messages: IMessage[]): IMessage[] {
+  return messages.filter((message) => {
+    if (message.transient) return false;
+    const content = (message.content || '').trim();
+    if (message.role === 'ai' && content.startsWith('调用失败:')) return false;
+    // 过滤 Give_Result 结果的结构化 JSON 文本
+    if (message.role === 'ai' && looksLikeResultJson(content)) return false;
+    return true;
+  });
+}
+
+function looksLikeResultJson(content: string): boolean {
+  const normalized = content.replace(/```(?:json)?/g, '').trim();
+  if (!normalized.startsWith('{')) return false;
+  return /personality_tags|personalityTags/.test(normalized)
+    && /appearance/.test(normalized)
+    && /backstory/.test(normalized);
+}

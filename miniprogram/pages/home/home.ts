@@ -16,6 +16,8 @@ Page({
     completedCharacters: [] as ICharacterListItem[],
     incompleteCharacters: [] as ICharacterListItem[],
     loading: false,
+    isDeleteMode: false,
+    isExitAnimating: false,
   },
 
   onLoad() {
@@ -24,6 +26,7 @@ Page({
   },
 
   onShow() {
+    this.setData({ isDeleteMode: false });
     // 每次进入都从云端拉取最新数据
     if (getCurrentUserId()) {
       this.loadFromCloud();
@@ -112,6 +115,7 @@ Page({
 
   // 点击角色卡片
   onCardTap(e: WechatMiniprogram.TouchEvent) {
+    if (this.data.isDeleteMode) return;
     const { id, status } = e.currentTarget.dataset;
 
     if (status === 'incomplete') {
@@ -121,5 +125,46 @@ Page({
       // 已完成的角色，查看详情
       wx.navigateTo({ url: `/pages/preview/preview?characterId=${id}&readonly=true` });
     }
+  },
+
+  // 长按进入删除编辑模式
+  onCardLongPress() {
+    if (!this.data.isDeleteMode) {
+      this.setData({ isDeleteMode: true });
+    }
+  },
+
+  // 退出删除编辑模式
+  onExitDeleteMode() {
+    this.setData({ isExitAnimating: true, isDeleteMode: false });
+    setTimeout(() => {
+      this.setData({ isExitAnimating: false });
+    }, 200);
+  },
+
+  // 点击删除按钮
+  onDeleteTap(e: WechatMiniprogram.TouchEvent) {
+    const { id } = e.currentTarget.dataset;
+    if (!id) return;
+
+    wx.showModal({
+      title: '删除角色卡',
+      content: '确定要删除该角色卡吗？此操作不可恢复。',
+      confirmText: '删除',
+      confirmColor: '#dc2626',
+      success: (res) => {
+        if (res.confirm) {
+          // 删除角色卡（云端 + 本地）
+          deleteCharacter(id);
+          this.removeCharacterFromList(id);
+        }
+      },
+    });
+  },
+
+  removeCharacterFromList(id: string) {
+    const completed = this.data.completedCharacters.filter(item => item.id !== id);
+    const incomplete = this.data.incompleteCharacters.filter(item => item.id !== id);
+    this.setData({ completedCharacters: completed, incompleteCharacters: incomplete });
   },
 });

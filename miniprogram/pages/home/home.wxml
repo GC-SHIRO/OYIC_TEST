@@ -1,5 +1,5 @@
 <!-- 首页 - 角色卡中心 -->
-<view class="page-container">
+<view class="page-container {{isDeleteMode ? 'delete-mode' : ''}} {{isExitAnimating ? 'delete-exit' : ''}}">
   <!-- 顶部标题 -->
   <view class="navbar">
     <text class="navbar-title">我的角色</text>
@@ -28,9 +28,13 @@
         wx:for="{{incompleteCharacters}}" 
         wx:key="id"
         bindtap="onCardTap"
+        bindlongpress="onCardLongPress"
         data-id="{{item.id}}"
         data-status="incomplete"
       >
+        <view wx:if="{{isDeleteMode}}" class="delete-btn" bindtap="onDeleteTap" data-id="{{item.id}}">
+          <text class="delete-icon">×</text>
+        </view>
         <image 
           src="{{item.avatar}}" 
           class="card-image" 
@@ -51,9 +55,13 @@
         wx:for="{{completedCharacters}}" 
         wx:key="id"
         bindtap="onCardTap"
+        bindlongpress="onCardLongPress"
         data-id="{{item.id}}"
         data-status="completed"
       >
+        <view wx:if="{{isDeleteMode}}" class="delete-btn" bindtap="onDeleteTap" data-id="{{item.id}}">
+          <text class="delete-icon">×</text>
+        </view>
         <image 
           src="{{item.avatar}}" 
           class="card-image" 
@@ -66,5 +74,9 @@
         </view>
       </view>
     </scroll-view>
+  </view>
+
+  <view wx:if="{{isDeleteMode}}" class="exit-edit-fab" bindtap="onExitDeleteMode">
+    退出编辑
   </view>
 </view>

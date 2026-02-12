@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>消费明细 - O亿C</title>
+    <style>
+      :root {
+        --bg: #f2f3f5;
+        --surface: #ffffff;
+        --text: #111827;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --accent: #374151;
+        --accent-2: #6b7280;
+        --green: #059669;
+        --red: #dc2626;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "PingFang SC", "MiSans", "Noto Sans SC", "Source Han Sans SC", sans-serif;
+        color: var(--text);
+        background: radial-gradient(1200px 800px at 20% -10%, #f7f8fa 0%, #f0f2f5 45%, #eef0f3 100%);
+      }
+      .app {
+        min-height: 100vh;
+        padding: 20px 18px 36px;
+      }
+      .nav {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+      .back {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        display: grid;
+        place-items: center;
+        background: rgba(255, 255, 255, 0.85);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      }
+      .title {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .summary-card {
+        background: var(--surface);
+        border-radius: 18px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+      }
+      .summary-label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .summary-value {
+        margin-top: 8px;
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .filters {
+        margin: 18px 0 12px;
+        display: flex;
+        gap: 8px;
+      }
+      .chip {
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.7);
+      }
+      .chip.active {
+        color: #ffffff;
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .list {
+        display: grid;
+        gap: 12px;
+      }
+      .item {
+        background: var(--surface);
+        border-radius: 18px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+      }
+      .item-title {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .item-meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .item-value {
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .item-value.negative {
+        color: var(--red);
+      }
+      .item-value.positive {
+        color: var(--green);
+      }
+      .notice {
+        margin-top: 18px;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.6;
+        padding: 12px;
+        border-radius: 16px;
+        border: 1px dashed var(--border);
+        background: rgba(255, 255, 255, 0.75);
+      }
+      @media (min-width: 720px) {
+        .app {
+          max-width: 520px;
+          margin: 0 auto;
+          padding-top: 28px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="nav">
+        <div class="back">←</div>
+        <div class="title">消费明细</div>
+      </div>
+
+      <section class="summary">
+        <div class="summary-card">
+          <div class="summary-label">本月消耗</div>
+          <div class="summary-value">2,460 创作点</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">当前余额</div>
+          <div class="summary-value">1,280 创作点</div>
+        </div>
+      </section>
+
+      <div class="filters">
+        <div class="chip active">全部</div>
+        <div class="chip">对话消耗</div>
+        <div class="chip">角色卡生成</div>
+        <div class="chip">充值入账</div>
+      </div>
+
+      <section class="list">
+        <div class="item">
+          <div>
+            <div class="item-title">Dify 对话消耗</div>
+            <div class="item-meta">2026-02-11 20:24 · 1,420 tokens</div>
+          </div>
+          <div class="item-value negative">-42 创作点</div>
+        </div>
+        <div class="item">
+          <div>
+            <div class="item-title">角色卡生成</div>
+            <div class="item-meta">2026-02-11 19:10 · 结果生成</div>
+          </div>
+          <div class="item-value negative">-80 创作点</div>
+        </div>
+        <div class="item">
+          <div>
+            <div class="item-title">Dify 对话消耗</div>
+            <div class="item-meta">2026-02-10 22:18 · 980 tokens</div>
+          </div>
+          <div class="item-value negative">-30 创作点</div>
+        </div>
+        <div class="item">
+          <div>
+            <div class="item-title">充值入账</div>
+            <div class="item-meta">2026-02-10 21:40 · 微信支付</div>
+          </div>
+          <div class="item-value positive">+3,500 创作点</div>
+        </div>
+        <div class="item">
+          <div>
+            <div class="item-title">分享奖励</div>
+            <div class="item-meta">2026-02-09 12:03 · 群聊分享</div>
+          </div>
+          <div class="item-value positive">+120 创作点</div>
+        </div>
+      </section>
+
+    </div>
+  </body>
+</html>

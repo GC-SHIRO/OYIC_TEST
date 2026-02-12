@@ -17,6 +17,8 @@ export interface IMessage {
   images?: string[];
   timestamp: number;
   animate?: boolean;
+  transient?: boolean;
+  userId?: string;
 }
 
 // 本地缓存键名前缀
@@ -35,7 +37,18 @@ export const PLACEHOLDER_IMAGE = '/assets/images/character_placeholder.png';
  */
 export function getCurrentUserId(): string {
   const app = getApp<IAppOption>();
-  return app?.globalData?.openId || '';
+  const openId = app?.globalData?.openId || '';
+  if (openId) return openId;
+
+  const cached = wx.getStorageSync('cloudUserInfo');
+  if (cached?.openId) {
+    app.globalData.isLoggedIn = true;
+    app.globalData.openId = cached.openId;
+    app.globalData.userInfo = cached;
+    return cached.openId;
+  }
+
+  return '';
 }
 
 /**
@@ -249,20 +262,53 @@ export function deleteCharacter(characterId: string): void {
     name: 'characterCard',
     data: { action: 'delete', cardId: characterId },
   }).catch(err => console.warn('云端删除失败:', err));
+
+  // 删除云端对话记录
+  removeConversationFromCloud(characterId).catch(err => {
+    console.warn('云端对话删除失败:', err);
+  });
 }
 
 // ================================================================
-//  对话历史（仅本地存储）
+//  对话历史（云端为主，本地缓存加速）
 // ================================================================
 
-export function getConversation(characterId: string): IMessage[] {
+export async function fetchConversationFromCloud(characterId: string): Promise<IMessage[]> {
+  try {
+    const res = await wx.cloud.callFunction({
+      name: 'conversation',
+      data: { action: 'get', characterId },
+    });
+
+    const result = res.result as any;
+    if (result.code === 0 && result.data) {
+      const messages = Array.isArray(result.data.messages) ? result.data.messages : [];
+      // 更新本地缓存（仅在已知用户时）
+      if (getCurrentUserId()) {
+        wx.setStorageSync(userKey(`${STORAGE_KEYS.CONVERSATION_PREFIX}${characterId}`), messages);
+      }
+      return messages;
+    }
+  } catch (err) {
+    console.warn('云端对话拉取失败，降级本地缓存:', err);
+  }
+
+  return getConversationLocal(characterId);
+}
+
+export function getConversationLocal(characterId: string): IMessage[] {
   if (!getCurrentUserId()) return [];
   return wx.getStorageSync(userKey(`${STORAGE_KEYS.CONVERSATION_PREFIX}${characterId}`)) || [];
 }
 
 export function saveConversation(characterId: string, messages: IMessage[]): void {
   if (!getCurrentUserId()) return;
+  // 先写本地缓存，加速首屏
   wx.setStorageSync(userKey(`${STORAGE_KEYS.CONVERSATION_PREFIX}${characterId}`), messages);
+  // 异步同步到云端
+  syncConversationToCloud(characterId, messages).catch(err => {
+    console.warn('云端对话写入失败，已保留本地缓存:', err);
+  });
 }
 
 // ================================================================
@@ -310,6 +356,20 @@ async function syncCardToCloud(card: ICharacterCard): Promise<void> {
     console.error('云端写入角色卡失败:', err);
     throw err;
   }
+}
+
+async function syncConversationToCloud(characterId: string, messages: IMessage[]): Promise<void> {
+  await wx.cloud.callFunction({
+    name: 'conversation',
+    data: { action: 'save', characterId, messages },
+  });
+}
+
+async function removeConversationFromCloud(characterId: string): Promise<void> {
+  await wx.cloud.callFunction({
+    name: 'conversation',
+    data: { action: 'delete', characterId },
+  });
 }
 
 function toTimestamp(val: any): number {

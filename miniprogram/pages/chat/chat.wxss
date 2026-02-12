@@ -30,17 +30,19 @@ page {
 
 /* navbar 占位，防止内容被固定导航栏遮挡 */
 .navbar-placeholder {
-  height: 176rpx; /* 88rpx padding-top + 64rpx content + 24rpx padding-bottom */
+  height: 184rpx; /* 88rpx padding-top + 72rpx content + 24rpx padding-bottom */
 }
 
 .nav-back {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  border: 2rpx solid #e5e7eb;
+  background: rgba(255, 255, 255, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f3f4f6;
+  box-shadow: 0 12rpx 24rpx rgba(17, 24, 39, 0.1);
 }
 
 .navbar-title {

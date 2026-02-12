@@ -1,5 +1,5 @@
 // 我的 - 用户中心页面（基于云开发登录）
-import { cloudLogin, updateNickname, updateSignature, uploadAvatar, logout, isLoggedIn, getLocalUserInfo } from '../../services/user';
+import { cloudLogin, updateNickname, updateSignature, uploadAvatar, logout, isLoggedIn, getLocalUserInfo, getCloudUserInfo } from '../../services/user';
 import { fetchCharactersFromCloud, getCompletedCharacters, getCurrentUserId, PLACEHOLDER_IMAGE } from '../../services/storage';
 import type { ICharacterCard } from '../../types/character';
 
@@ -48,6 +48,8 @@ Page({
     // 每次进入都从云端拉取最新
     if (this.data.isLoggedIn && getCurrentUserId()) {
       this.loadWorksFromCloud();
+      this.loadBalanceOverview();
+      this.loadProfileFromCloud();
     } else {
       this.setData({ works: [] });
     }
@@ -55,6 +57,50 @@ Page({
     // 更新自定义 tabbar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 1 });
+    }
+  },
+
+  // 拉取用户信息（含个性签名）并同步到本地缓存
+  async loadProfileFromCloud() {
+    try {
+      const cloudUser = await getCloudUserInfo();
+      if (!cloudUser) return;
+
+      const userInfo = {
+        ...this.data.userInfo,
+        nickname: cloudUser.nickname || this.data.userInfo.nickname,
+        avatar: cloudUser.avatar || this.data.userInfo.avatar,
+        signature: cloudUser.signature || '',
+        balance: cloudUser.balance ?? this.data.userInfo.balance,
+      };
+
+      this.setData({ userInfo });
+      wx.setStorageSync('cloudUserInfo', userInfo);
+    } catch (err) {
+      console.error('获取用户信息失败:', err);
+    }
+  },
+
+  // 拉取最新余额，保证创作点实时更新
+  async loadBalanceOverview() {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'billing',
+        data: { action: 'overview' },
+      });
+
+      const result = res.result as any;
+      if (result.code === 0 && result.data) {
+        const balance = result.data.balance ?? 0;
+        const userInfo = { ...this.data.userInfo, balance };
+        this.setData({ userInfo });
+
+        const cached = wx.getStorageSync('cloudUserInfo') || {};
+        cached.balance = balance;
+        wx.setStorageSync('cloudUserInfo', cached);
+      }
+    } catch (err) {
+      console.error('获取余额失败:', err);
     }
   },
 
@@ -449,7 +495,11 @@ Page({
   },
 
   showRecharge() {
-    wx.showToast({ title: '功能开发中', icon: 'none' });
+    if (!this.data.isLoggedIn) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/payment/payment' });
   },
 
   showAbout() {

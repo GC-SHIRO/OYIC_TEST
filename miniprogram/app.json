@@ -2,6 +2,8 @@
   "pages": [
     "pages/home/home",
     "pages/profile/profile",
+    "pages/payment/payment",
+    "pages/usage/usage",
     "pages/chat/chat",
     "pages/preview/preview",
     "pages/index/index",

@@ -3,7 +3,7 @@
   <!-- 顶部导航（固定） -->
   <view class="navbar">
     <view class="nav-back" bindtap="onBack">
-      <t-icon name="chevron-left" size="48rpx" color="#666" />
+      <t-icon name="chevron-left" size="40rpx" color="#374151" />
     </view>
     <text class="navbar-title">创建角色</text>
   </view>

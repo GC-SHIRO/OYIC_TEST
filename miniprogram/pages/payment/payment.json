@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "支付中心",
+  "usingComponents": {
+    "t-icon": "tdesign-miniprogram/icon/icon"
+  }
+}

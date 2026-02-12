@@ -34,6 +34,16 @@
   
   <!-- 内容区域 -->
   <scroll-view class="content-container" scroll-y enhanced show-scrollbar="{{false}}">
+    <!-- 余额卡片 -->
+    <view class="balance-card" bindtap="onMenuTap" data-type="recharge">
+      <view class="balance-label">当前余额</view>
+      <view class="balance-value">
+        <text class="balance-number">{{userInfo.balance}}</text>
+        <text class="balance-unit">创作点</text>
+      </view>
+      <view class="balance-action">去充值</view>
+    </view>
+
     <!-- 我的作品 -->
     <view class="section">
       <view class="section-header">
@@ -112,9 +122,8 @@
         </view>
         <view class="menu-content">
           <view class="menu-title">余额充值</view>
-          <view class="menu-subtitle">购买创作次数</view>
+          <view class="menu-subtitle">购买创作点</view>
         </view>
-        <t-badge count="{{userInfo.balance}}" class="menu-badge" />
         <t-icon name="chevron-right" size="40rpx" color="#ccc" />
       </view>
       

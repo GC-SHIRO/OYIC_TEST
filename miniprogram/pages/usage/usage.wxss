@@ -1,0 +1,133 @@
+.page-container {
+  --page-top-gap: 100rpx;
+  min-height: 100vh;
+  padding: 0 24rpx 120rpx;
+  padding-top: calc(var(--page-top-gap) + env(safe-area-inset-top));
+  background: radial-gradient(120% 120% at 20% 0%, #f7f8fa 0%, #f0f2f5 45%, #eef0f3 100%);
+  color: #111827;
+  font-family: "PingFang SC", "MiSans", "Noto Sans SC", "Source Han Sans SC", sans-serif;
+}
+
+.navbar {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.nav-back {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  border: 2rpx solid #e5e7eb;
+  background: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12rpx 24rpx rgba(17, 24, 39, 0.1);
+}
+
+.nav-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
+}
+
+.summary-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 20rpx;
+  border: 2rpx solid #e5e7eb;
+  box-shadow: 0 16rpx 32rpx rgba(17, 24, 39, 0.08);
+}
+
+.summary-label {
+  font-size: 22rpx;
+  color: #6b7280;
+}
+
+.summary-value {
+  margin-top: 10rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.filters {
+  margin: 24rpx 0 16rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.chip {
+  padding: 10rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  border: 2rpx solid #e5e7eb;
+  color: #6b7280;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.chip.active {
+  color: #ffffff;
+  background: #374151;
+  border-color: #374151;
+}
+
+.list {
+  display: grid;
+  gap: 16rpx;
+}
+
+.item {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 20rpx;
+  border: 2rpx solid #e5e7eb;
+  box-shadow: 0 16rpx 32rpx rgba(17, 24, 39, 0.08);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16rpx;
+  align-items: center;
+}
+
+.item-title {
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.item-meta {
+  font-size: 22rpx;
+  color: #6b7280;
+  margin-top: 6rpx;
+}
+
+.item-value {
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.item-value.negative {
+  color: #dc2626;
+}
+
+.item-value.positive {
+  color: #059669;
+}
+
+.notice {
+  margin-top: 28rpx;
+  font-size: 22rpx;
+  color: #6b7280;
+  line-height: 1.7;
+  padding: 20rpx;
+  border-radius: 24rpx;
+  border: 2rpx dashed #e5e7eb;
+  background: rgba(255, 255, 255, 0.75);
+}

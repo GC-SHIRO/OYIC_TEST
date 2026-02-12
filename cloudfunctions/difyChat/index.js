@@ -1,12 +1,15 @@
 // 云函数 - Dify 对话代理
 // 将 Dify API Key 安全地保存在云端，前端通过此云函数间接调用 Dify API
 const cloud = require('wx-server-sdk')
-const http = require('http')
 const https = require('https')
+const billingConfig = require('./billingConfig')
 
 cloud.init({
   env: 'cloud1-0g88vkjh890eca50'
 })
+
+const db = cloud.database()
+const _ = db.command
 
 // ===== Dify 配置 =====
 // 请在此处填入你的 Dify API Key
@@ -45,11 +48,18 @@ exports.main = async (event, context) => {
  * event.files: 上传的文件（可选）
  */
 async function sendChatMessage(event, openId) {
-  const { query, conversationId, files } = event
+  const { query, conversationId, files, cardId } = event
 
   if (!query) {
     return { code: -1, message: '缺少 query 参数' }
   }
+
+  const user = await getUserByOpenId(openId)
+  if (!user) {
+    return { code: -1, message: '用户不存在' }
+  }
+
+  const isCardGen = isCardGenRequest(query)
 
   const requestBody = {
     inputs: {},
@@ -77,6 +87,36 @@ async function sendChatMessage(event, openId) {
     return { code: -1, message: result.error, error: result.error }
   }
 
+  const tokens = result.tokens || 0
+  const chatCost = calcChatCost(tokens)
+  const cardCost = isCardGen ? billingConfig.CARD_GEN_COST : 0
+  const changes = [{
+    type: 'chat',
+    delta: -chatCost,
+    tokens,
+    conversationId: result.conversationId || '',
+    cardId: cardId || '',
+    source: 'dify',
+    meta: { messageId: result.messageId || '' },
+  }]
+
+  if (cardCost > 0) {
+    changes.push({
+      type: 'card',
+      delta: -cardCost,
+      tokens: 0,
+      conversationId: result.conversationId || '',
+      cardId: cardId || '',
+      source: 'dify',
+      meta: { messageId: result.messageId || '' },
+    })
+  }
+
+  const applyResult = await applyBalanceChanges(openId, changes)
+  if (!applyResult.ok) {
+    return { code: -1, message: applyResult.message || '扣费失败' }
+  }
+
   return {
     code: 0,
     message: '成功',
@@ -84,6 +124,8 @@ async function sendChatMessage(event, openId) {
       answer: result.answer || '',
       conversationId: result.conversationId || '',
       messageId: result.messageId || '',
+      tokens,
+      cost: chatCost + cardCost,
     }
   }
 }
@@ -115,6 +157,7 @@ function httpPostSSE(url, body, headers) {
     let fullAnswer = ''
     let conversationId = ''
     let messageId = ''
+    let tokens = 0
     let buffer = ''
 
     const req = https.request(options, (res) => {
@@ -154,6 +197,7 @@ function httpPostSSE(url, body, headers) {
             } else if (evt.event === 'message_end') {
               if (evt.conversation_id) conversationId = evt.conversation_id
               if (evt.message_id) messageId = evt.message_id
+              tokens = pickTokens(evt.metadata)
             } else if (evt.event === 'error') {
               resolve({ error: evt.message || '流式响应错误' })
               req.destroy()
@@ -177,7 +221,7 @@ function httpPostSSE(url, body, headers) {
           } catch (e) { /* ignore */ }
         }
 
-        resolve({ answer: fullAnswer, conversationId, messageId })
+        resolve({ answer: fullAnswer, conversationId, messageId, tokens })
       })
     })
 
@@ -193,6 +237,91 @@ function httpPostSSE(url, body, headers) {
     req.write(postData)
     req.end()
   })
+}
+
+function calcChatCost(tokens) {
+  const unit = billingConfig.TOKEN_UNIT || 1000
+  const costPerUnit = billingConfig.TOKEN_COST || 0
+  const usedTokens = Math.max(0, Number(tokens) || 0)
+  const units = Math.max(1, Math.ceil(usedTokens / unit))
+  return units * costPerUnit
+}
+
+function isCardGenRequest(query) {
+  if (!query) return false
+  return query.trim().toLowerCase() === 'give_result'
+}
+
+function pickTokens(metadata) {
+  if (!metadata || !metadata.usage) return 0
+  const usage = metadata.usage
+  return usage.total_tokens
+    || usage.total_tokens_count
+    || usage.total
+    || usage.totalTokens
+    || 0
+}
+
+async function getUserByOpenId(openId) {
+  const res = await db.collection('users').where({ _openid: openId }).get()
+  return res.data && res.data.length > 0 ? res.data[0] : null
+}
+
+async function applyBalanceChanges(openId, changes) {
+  if (!changes || changes.length === 0) {
+    return { ok: true }
+  }
+
+  try {
+    const totalDelta = changes.reduce((sum, item) => sum + item.delta, 0)
+
+    const result = await db.runTransaction(async (transaction) => {
+      const res = await transaction.collection('users').where({ _openid: openId }).get()
+      if (!res.data || res.data.length === 0) {
+        throw new Error('用户不存在')
+      }
+
+      const user = res.data[0]
+      const balanceBefore = user.balance || 0
+      const balanceAfter = balanceBefore + totalDelta
+
+      await transaction.collection('users').doc(user._id).update({
+        data: {
+          balance: balanceAfter,
+          updatedAt: db.serverDate(),
+        }
+      })
+
+      let running = balanceBefore
+      for (const change of changes) {
+        const before = running
+        const after = running + change.delta
+        running = after
+
+        await transaction.collection('usage_logs').add({
+          data: {
+            _openid: openId,
+            type: change.type,
+            delta: change.delta,
+            balanceBefore: before,
+            balanceAfter: after,
+            tokens: change.tokens || 0,
+            conversationId: change.conversationId || '',
+            cardId: change.cardId || '',
+            source: change.source || 'dify',
+            meta: change.meta || {},
+            createdAt: db.serverDate(),
+          }
+        })
+      }
+
+      return { balanceBefore, balanceAfter }
+    })
+
+    return { ok: true, balanceBefore: result.balanceBefore, balanceAfter: result.balanceAfter }
+  } catch (err) {
+    return { ok: false, message: err.message || String(err) }
+  }
 }
 
 /**

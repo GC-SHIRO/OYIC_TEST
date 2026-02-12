@@ -158,6 +158,11 @@ async function deleteCard(event, openId) {
     _openid: openId
   }).remove()
 
+  await db.collection('conversations').where({
+    _openid: openId,
+    characterId: cardId,
+  }).remove()
+
   return {
     code: 0,
     message: '删除成功',

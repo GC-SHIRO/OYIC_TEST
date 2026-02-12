@@ -4,11 +4,14 @@
   bottom: 32rpx;
   left: 32rpx;
   right: 32rpx;
-  background: white;
+  background: rgba(255, 255, 255, 0.72);
+  border: 2rpx solid rgba(255, 255, 255, 0.6);
   border-radius: 48rpx;
   display: flex;
   padding: 20rpx 0;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
+  box-shadow: 0 12rpx 32rpx rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(20rpx) saturate(140%);
+  -webkit-backdrop-filter: blur(20rpx) saturate(140%);
   z-index: 999;
 }
 

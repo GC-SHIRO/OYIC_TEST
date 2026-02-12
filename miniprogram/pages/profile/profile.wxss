@@ -181,6 +181,69 @@
   margin-top: 8rpx;
 }
 
+.balance-card {
+  margin: 12rpx 24rpx 32rpx;
+  padding: 24rpx 24rpx 22rpx;
+  border-radius: 32rpx;
+  background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 60%, #cbd5e1 100%);
+  box-shadow: 0 16rpx 36rpx rgba(17, 24, 39, 0.1);
+  position: relative;
+  overflow: hidden;
+  animation: floatUp 520ms ease-out both;
+}
+
+.balance-card::after {
+  content: "";
+  position: absolute;
+  right: -120rpx;
+  top: -90rpx;
+  width: 320rpx;
+  height: 320rpx;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+}
+
+.balance-label {
+  font-size: 22rpx;
+  color: rgba(17, 24, 39, 0.6);
+  letter-spacing: 2rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.balance-value {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+  margin-top: 12rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.balance-number {
+  font-size: 48rpx;
+  font-weight: 700;
+  color: #111827;
+}
+
+.balance-unit {
+  font-size: 22rpx;
+  color: rgba(17, 24, 39, 0.6);
+}
+
+.balance-action {
+  position: absolute;
+  right: 20rpx;
+  bottom: 18rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #374151;
+  background: rgba(255, 255, 255, 0.85);
+  border: 2rpx solid rgba(148, 163, 184, 0.7);
+  z-index: 1;
+}
+
 .bottom-placeholder {
   height: 200rpx;
   padding: 0 24rpx;
@@ -197,7 +260,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24rpx;
+  margin-bottom: 10rpx;
   padding: 0 32rpx;
 }
 
@@ -340,6 +403,8 @@
 
 .menu-badge {
   margin-right: 16rpx;
+  --td-badge-bg-color: #4b5563;
+  --td-badge-text-color: #ffffff;
 }
 
 /* 退出登录 */

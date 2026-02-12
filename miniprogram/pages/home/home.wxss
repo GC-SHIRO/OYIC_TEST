@@ -26,6 +26,9 @@
   box-shadow: 0 16rpx 40rpx rgba(17, 24, 39, 0.06);
   position: relative;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .navbar-title {
@@ -33,6 +36,24 @@
   font-weight: 700;
   color: #111827;
   letter-spacing: 1rpx;
+}
+
+@keyframes shrinkIn {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(0.94);
+  }
+}
+
+@keyframes expandOut {
+  0% {
+    transform: scale(0.94);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* 角色卡片滚动容器 */
@@ -67,6 +88,55 @@
   border: 2rpx solid rgba(226, 232, 240, 0.8);
   animation: riseIn 420ms ease-out both;
   transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.delete-mode .character-card {
+  transform: scale(0.94);
+  box-shadow: 0 10rpx 26rpx rgba(17, 24, 39, 0.12);
+  animation: shrinkIn 160ms ease-out both;
+}
+
+.delete-exit .character-card {
+  transform: scale(1);
+  animation: expandOut 180ms ease-out both;
+}
+
+.delete-btn {
+  position: absolute;
+  top: 18rpx;
+  right: 18rpx;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10rpx 22rpx rgba(239, 68, 68, 0.35);
+  z-index: 2;
+}
+
+.delete-icon {
+  color: #ffffff;
+  font-size: 36rpx;
+  line-height: 1;
+  margin-top: -2rpx;
+}
+
+.exit-edit-fab {
+  position: fixed;
+  left: 50%;
+  bottom: calc(160rpx + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  padding: 14rpx 28rpx;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #374151;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2rpx solid #e5e7eb;
+  box-shadow: 0 12rpx 26rpx rgba(17, 24, 39, 0.12);
+  z-index: 1000;
 }
 
 .character-card:last-child {

@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "消费明细",
+  "usingComponents": {
+    "t-icon": "tdesign-miniprogram/icon/icon"
+  }
+}

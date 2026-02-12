@@ -1,0 +1,47 @@
+<view class="page-container">
+  <view class="navbar">
+    <view class="nav-back" bindtap="onBackTap">
+      <t-icon name="chevron-left" size="40rpx" color="#374151" />
+    </view>
+    <view class="nav-title">消费明细</view>
+  </view>
+
+  <view class="summary">
+    <view class="summary-card">
+      <view class="summary-label">本月消耗</view>
+      <view class="summary-value">{{monthlyCost}} 创作点</view>
+    </view>
+    <view class="summary-card">
+      <view class="summary-label">当前余额</view>
+      <view class="summary-value">{{balance}} 创作点</view>
+    </view>
+  </view>
+
+  <view class="filters">
+    <view
+      class="chip {{activeFilter === item.value ? 'active' : ''}}"
+      wx:for="{{filters}}"
+      wx:key="value"
+      data-value="{{item.value}}"
+      bindtap="onFilterTap"
+    >
+      {{item.label}}
+    </view>
+  </view>
+
+  <view class="list">
+    <view class="item" wx:for="{{displayRecords}}" wx:key="id">
+      <view>
+        <view class="item-title">{{item.title}}</view>
+        <view class="item-meta">{{item.meta}}</view>
+      </view>
+      <view class="item-value {{item.delta < 0 ? 'negative' : 'positive'}}">
+        {{item.delta > 0 ? '+' : ''}}{{item.delta}} 创作点
+      </view>
+    </view>
+  </view>
+
+  <view class="notice">
+    每条记录包含 tokens 统计与消费类型，历史记录按用户 openId 隔离并存储于云数据库。
+  </view>
+</view>

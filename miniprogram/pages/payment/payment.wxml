@@ -1,0 +1,75 @@
+<view class="page-container">
+  <view class="navbar">
+    <view class="nav-back" bindtap="onBackTap">
+      <t-icon name="chevron-left" size="40rpx" color="#374151" />
+    </view>
+    <view class="nav-title">支付中心</view>
+  </view>
+
+  <view class="balance-card">
+    <view class="balance-label">当前余额</view>
+    <view class="balance-value">
+      <text class="balance-number">{{balance}}</text>
+      <text class="balance-unit">创作点</text>
+    </view>
+    <view class="balance-meta">
+      <text>今日消耗 {{todayCost}} 创作点</text>
+      <text class="balance-link" bindtap="onViewUsage">查看明细</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">
+      <text>充值方案</text>
+    </view>
+    <view class="packs">
+      <view
+        class="pack {{selectedPlanType === 'pack' && selectedPackIndex === index ? 'selected' : ''}}"
+        wx:for="{{packs}}"
+        wx:key="price"
+        wx:for-index="index"
+        data-index="{{index}}"
+        bindtap="onPackTap"
+      >
+        <view wx:if="{{item.isHot}}" class="pack-tag">最受欢迎</view>
+        <view class="pack-price">¥ {{item.price}}</view>
+        <view class="pack-points">获得 {{item.points}} 创作点</view>
+        <view class="pack-bonus">
+          <text wx:if="{{item.bonus}}">赠送 {{item.bonus}} 创作点</text>
+          <text wx:elif="{{item.bonusText}}">{{item.bonusText}} 创作点</text>
+        </view>
+      </view>
+    </view>
+    <view class="custom-pack {{selectedPlanType === 'custom' ? 'selected' : ''}}" bindtap="onCustomPackTap">
+      <view class="custom-title">自定义充值金额</view>
+      <view class="custom-rate">比例：1 元 = {{rechargeRate}} 创作点</view>
+      <view class="custom-input-row">
+        <input
+          class="custom-input"
+          type="number"
+          placeholder="输入金额"
+          value="{{customAmount}}"
+          bindinput="onCustomAmountInput"
+          bindfocus="onCustomPackTap"
+        />
+        <view class="custom-points">{{customPoints}} 创作点</view>
+      </view>
+      <view class="custom-tip">自定义充值不含优惠，按比例严格计算</view>
+    </view>
+    <button class="cta" bindtap="onRechargeTap">立即充值</button>
+  </view>
+
+  <view class="rules">
+    <text class="rules-title">计费规则</text>
+    <text>AI 对话每 1,000 tokens 消耗 30 创作点；角色卡生成额外消耗 80 创作点。</text>
+  </view>
+
+  <view class="activity-label">活动</view>
+  <view class="activity-banner">
+    <view class="activity-text">
+      <view class="activity-title">{{activity.title}}</view>
+      <view class="activity-subtitle">{{activity.subtitle}}</view>
+    </view>
+    <view class="activity-action">立即分享</view>
+  </view>
+</view>
