@@ -14,6 +14,7 @@ import type { IAgentResponse } from '../../services/agent';
 import { chatWithDify, generateCharacterCard } from '../../services/agent';
 
 const WELCOME_CONTENT = '你好！我是你的角色创作助手\n\n告诉我你的想法吧！可以是角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~';
+const DIFY_ERROR_TEXT = 'AI服务出现错误，请联系管理员处理';
 
 // 打字机效果状态（模块级变量）
 let _typewriterTimer: any = null;
@@ -72,7 +73,7 @@ Page({
     const messages = mergeConversationMessages(cloudMessages || [], localMessages || []);
 
     if (messages.length > 0) {
-      this.setData({ messages: ensureWelcomeMessage(messages) });
+      this.setData({ messages: finalizeStalePendingMessages(ensureWelcomeMessage(messages)) });
     } else {
       this.showWelcomeMessage();
     }
@@ -241,18 +242,19 @@ Page({
       } else {
         const errDetail = response.error || response.message || '未知错误';
         console.error('Dify 调用失败，详细原因:', errDetail);
+        const failText = 'AI服务出现错误，请联系管理员处理';
 
         const msgIndex = this.findMessageIndexById(pendingId);
         if (msgIndex >= 0) {
           this.setData({
             [`messages[${msgIndex}].pending`]: false,
-            [`messages[${msgIndex}].content`]: `调用失败: ${errDetail}`,
+            [`messages[${msgIndex}].content`]: failText,
             [`messages[${msgIndex}].transient`]: true,
           });
         } else {
           const errorMessage = {
             ...this.appendAiFallbackMessage(requestId).slice(-1)[0],
-            content: `调用失败: ${errDetail}`,
+            content: failText,
             transient: true,
           } as IMessage;
           this.setData({ messages: [...this.data.messages, errorMessage] });
@@ -524,7 +526,7 @@ Page({
       if (!currentId) return;
 
       const cloudMessages = await fetchConversationFromCloud(currentId);
-      const merged = ensureWelcomeMessage(cloudMessages || []);
+      const merged = finalizeStalePendingMessages(ensureWelcomeMessage(cloudMessages || []));
       if (!sameMessageSnapshot(this.data.messages, merged)) {
         this.setData({ messages: merged });
         this.scrollToBottom();
@@ -737,6 +739,22 @@ function sameMessageSnapshot(a: IMessage[], b: IMessage[]): boolean {
     if ((m1.content || '') !== (m2.content || '')) return false;
   }
   return true;
+}
+
+function finalizeStalePendingMessages(messages: IMessage[], timeoutMs = 150000): IMessage[] {
+  const now = Date.now();
+  return messages.map((message) => {
+    if (!message.pending) return message;
+    const timestamp = Number(message.timestamp || 0);
+    if (!timestamp || now - timestamp < timeoutMs) return message;
+
+    return {
+      ...message,
+      pending: false,
+      content: DIFY_ERROR_TEXT,
+      transient: true,
+    };
+  });
 }
 
 function ensureWelcomeMessage(messages: IMessage[]): IMessage[] {
