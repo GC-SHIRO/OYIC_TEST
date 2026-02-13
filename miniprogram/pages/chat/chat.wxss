@@ -144,7 +144,7 @@ page {
   padding: 24rpx 32rpx;
   border-radius: 32rpx;
   line-height: 1.6;
-  font-size: 30rpx;
+  font-size: 25rpx;
   word-break: break-word;
   /* 防止文字增长时气泡闪烁 */
   will-change: contents;
@@ -285,4 +285,80 @@ page {
 
 .floating-confirm-btn:active {
   transform: scale(0.95);
+}
+
+/* Markdown 消息样式 */
+.message-bubble t-chat-markdown {
+  display: block;
+  width: 100%;
+}
+
+/* 覆盖 Markdown 内部样式，适配气泡样式 */
+.message-ai .message-bubble t-chat-markdown {
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* Markdown 代码块样式 */
+.message-bubble t-chat-markdown ::deep code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2rpx 8rpx;
+  border-radius: 6rpx;
+  font-family: 'Courier New', monospace;
+  font-size: 26rpx;
+}
+
+.message-bubble t-chat-markdown ::deep pre {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 20rpx;
+  border-radius: 12rpx;
+  overflow-x: auto;
+  margin: 16rpx 0;
+}
+
+.message-bubble t-chat-markdown ::deep pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Markdown 链接样式 */
+.message-bubble t-chat-markdown ::deep a {
+  color: #0052d9;
+  text-decoration: underline;
+}
+
+/* Markdown 列表样式 */
+.message-bubble t-chat-markdown ::deep ul,
+.message-bubble t-chat-markdown ::deep ol {
+  padding-left: 40rpx;
+  margin: 16rpx 0;
+}
+
+/* Markdown 标题样式 */
+.message-bubble t-chat-markdown ::deep h1,
+.message-bubble t-chat-markdown ::deep h2,
+.message-bubble t-chat-markdown ::deep h3 {
+  font-weight: bold;
+  margin: 20rpx 0 12rpx;
+}
+
+.message-bubble t-chat-markdown ::deep h1 {
+  font-size: 36rpx;
+}
+
+.message-bubble t-chat-markdown ::deep h2 {
+  font-size: 32rpx;
+}
+
+.message-bubble t-chat-markdown ::deep h3 {
+  font-size: 28rpx;
+}
+
+/* Markdown 引用样式 */
+.message-bubble t-chat-markdown ::deep blockquote {
+  border-left: 4rpx solid #e5e7eb;
+  padding-left: 20rpx;
+  margin: 16rpx 0;
+  color: #6b7280;
 }
