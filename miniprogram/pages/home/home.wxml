@@ -42,11 +42,12 @@
         />
         <view class="card-info">
           <view class="card-name">{{item.name}}</view>
-          <view class="card-desc">{{item.introduction}}</view>
+        <view class="card-desc">{{item.introduction}}</view>
         </view>
         <view class="card-blur-overlay">
           <view class="incomplete-label">未完成</view>
         </view>
+        
       </view>
       
       <!-- 已完成的角色卡片 -->

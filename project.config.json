@@ -47,10 +47,11 @@
     "tabIndent": "insertSpaces",
     "tabSize": 2
   },
-  "libVersion": "trial",
+  "libVersion": "3.14.1",
   "packOptions": {
     "ignore": [],
     "include": []
   },
-  "appid": "wxabc67471e809a0c7"
+  "appid": "wxabc67471e809a0c7",
+  "cloudfunctionTemplateRoot": "cloudfunctionTemplate/"
 }
