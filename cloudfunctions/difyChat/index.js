@@ -27,6 +27,8 @@ exports.main = async (event, context) => {
     switch (action) {
       case 'chat':
         return await sendChatMessage(event, openId)
+      case 'settleGiveResultCharge':
+        return await settleGiveResultCharge(event, openId)
       case 'ping':
         return await testConnectivity()
       default:
@@ -102,37 +104,35 @@ async function sendChatMessage(event, openId) {
 
     const tokens = result.tokens || 0
     const chatCost = calcChatCost(tokens)
-    const cardCost = isCardGen ? billingConfig.CARD_GEN_COST : 0
-    const changes = [{
-      type: 'chat',
-      delta: -chatCost,
-      tokens,
-      conversationId: result.conversationId || '',
-      cardId: cardId || '',
-      source: 'dify',
-      meta: { messageId: result.messageId || '' },
-    }]
 
-    if (cardCost > 0) {
-      changes.push({
-        type: 'card',
-        delta: -cardCost,
-        tokens: 0,
+    if (isCardGen) {
+      if (cardId) {
+        await savePendingGiveResultCharge(openId, cardId, {
+          cost: chatCost,
+          tokens,
+          conversationId: result.conversationId || '',
+          messageId: result.messageId || '',
+        })
+      }
+      // 关键：Give_Result 不写入对话消息记录
+      // return 结构不变，但不调用 upsertConversation
+    } else {
+      const applyResult = await applyBalanceChanges(openId, [{
+        type: 'chat',
+        delta: -chatCost,
+        tokens,
         conversationId: result.conversationId || '',
         cardId: cardId || '',
         source: 'dify',
         meta: { messageId: result.messageId || '' },
-      })
-    }
-
-    const applyResult = await applyBalanceChanges(openId, changes)
-    if (!applyResult.ok) {
-      return { code: -1, message: applyResult.message || '扣费失败' }
-    }
-
-    // 兜底保存对话到云端（用户中途退出也能恢复）
-    if (cardId) {
-      await upsertConversation(openId, cardId, query, result.answer || '', requestId)
+      }])
+      if (!applyResult.ok) {
+        return { code: -1, message: applyResult.message || '扣费失败' }
+      }
+      // 只有普通对话才写入消息记录
+      if (cardId) {
+        await upsertConversation(openId, cardId, query, result.answer || '', requestId)
+      }
     }
 
     finalizeStatus = 'done'
@@ -144,13 +144,104 @@ async function sendChatMessage(event, openId) {
         conversationId: result.conversationId || '',
         messageId: result.messageId || '',
         tokens,
-        cost: chatCost + cardCost,
+        cost: isCardGen ? 0 : chatCost,
       }
     }
   } finally {
     if (shouldFinalizeRequest) {
       await finishConversationRequest(openId, cardId, requestId, finalizeStatus)
     }
+  }
+}
+
+async function savePendingGiveResultCharge(openId, characterId, charge) {
+  if (!openId || !characterId) return
+
+  const record = await ensureConversationRecord(openId, characterId)
+  if (!record || !record._id) return
+
+  const state = record.requestState || {}
+  await db.collection('conversations').doc(record._id).update({
+    data: {
+      requestState: {
+        ...state,
+        pendingGiveResultCharge: {
+          cost: Math.max(0, Number(charge.cost) || 0),
+          tokens: Math.max(0, Number(charge.tokens) || 0),
+          conversationId: charge.conversationId || '',
+          messageId: charge.messageId || '',
+          updatedAt: db.serverDate(),
+        },
+      },
+      updatedAt: db.serverDate(),
+    }
+  })
+}
+
+async function settleGiveResultCharge(event, openId) {
+  const { cardId } = event || {}
+  if (!cardId) {
+    return { code: -1, message: '缺少 cardId 参数' }
+  }
+
+  const res = await db.collection('conversations').where({
+    _openid: openId,
+    characterId: cardId,
+  }).limit(1).get()
+
+  const record = res.data && res.data.length > 0 ? res.data[0] : null
+  const state = record?.requestState || {}
+  const pending = state.pendingGiveResultCharge || {}
+  const cost = Math.max(0, Number(pending.cost) || 0)
+
+  if (cost <= 0) {
+    return {
+      code: 0,
+      message: '无需结算',
+      data: { charged: 0 }
+    }
+  }
+
+  const applyResult = await applyBalanceChanges(openId, [{
+    type: 'chat',
+    delta: -cost,
+    tokens: Math.max(0, Number(pending.tokens) || 0),
+    conversationId: pending.conversationId || '',
+    cardId,
+    source: 'dify',
+    meta: {
+      messageId: pending.messageId || '',
+      settleBy: 'preview_onComplete',
+      deferredFrom: 'give_result',
+    },
+  }])
+
+  if (!applyResult.ok) {
+    return { code: -1, message: applyResult.message || '结算失败' }
+  }
+
+  if (record && record._id) {
+    await db.collection('conversations').doc(record._id).update({
+      data: {
+        requestState: {
+          ...state,
+          pendingGiveResultCharge: {
+            cost: 0,
+            tokens: 0,
+            conversationId: '',
+            messageId: '',
+            updatedAt: db.serverDate(),
+          },
+        },
+        updatedAt: db.serverDate(),
+      }
+    })
+  }
+
+  return {
+    code: 0,
+    message: '结算成功',
+    data: { charged: cost }
   }
 }
 

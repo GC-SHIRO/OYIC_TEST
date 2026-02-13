@@ -22,6 +22,8 @@ let _typewriterFullText = '';
 let _typewriterMsgIndex = -1;
 let _pendingBlockModalShowing = false;
 let _pendingSyncTimer: any = null;
+let _exitGiveResultInFlight = false;
+let _exitGiveResultForCard = '';
 
 Page({
   data: {
@@ -50,6 +52,7 @@ Page({
 
   onHide() {
     this.stopPendingSync();
+    this.requestGiveResultOnExit();
   },
 
   // 显示欢迎消息
@@ -509,6 +512,37 @@ Page({
     this.stopPendingSync();
     this.finishTypewriter();
     this.saveConversation();
+    this.requestGiveResultOnExit();
+  },
+
+  async requestGiveResultOnExit() {
+    const { difyConversationId, characterId, isSending, messages } = this.data;
+    if (!characterId || !difyConversationId) return;
+    if (isSending || hasAnyPendingMessage(messages)) return;
+
+    if (_exitGiveResultInFlight && _exitGiveResultForCard === characterId) return;
+    _exitGiveResultInFlight = true;
+    _exitGiveResultForCard = characterId;
+
+    try {
+      const result = await generateCharacterCard(difyConversationId, characterId);
+      if (!result.success || !result.data) return;
+
+      const card = getCharacter(characterId);
+      if (!card) return;
+
+      card.characterInfo = result.data;
+      card.conversationId = result.conversationId || difyConversationId;
+      card.avatar = card.avatar || PLACEHOLDER_IMAGE;
+      saveCharacter(card);
+
+      // 退出时不将 Give_Result 结果同步进消息记录（不保存到本地/云端消息）
+      // 不做任何消息数组的 setData 或 saveConversation
+    } catch (error) {
+      console.warn('退出时更新角色卡失败:', error);
+    } finally {
+      _exitGiveResultInFlight = false;
+    }
   },
 
   startPendingSyncIfNeeded() {

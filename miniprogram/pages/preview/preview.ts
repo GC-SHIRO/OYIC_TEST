@@ -11,6 +11,7 @@ Page({
     characterId: '',
     readonly: false,
     loading: true,
+    isCompleting: false,
     character: {} as ICharacterInfo,
   },
 
@@ -170,10 +171,41 @@ Page({
   },
 
   // 完成创建 → 标记 completed → 同步云端 → 弹窗 → 回首页
-  onComplete() {
-    const { character, characterId } = this.data;
+  async onComplete() {
+    const { character, characterId, isCompleting } = this.data;
 
     if (!characterId) return;
+    if (isCompleting) return;
+
+    this.setData({ isCompleting: true });
+
+    wx.showLoading({ title: '提交中...', mask: true });
+
+    try {
+      const settleRes = await wx.cloud.callFunction({
+        name: 'difyChat',
+        data: {
+          action: 'settleGiveResultCharge',
+          cardId: characterId,
+        },
+      });
+
+      const settleResult = settleRes.result as any;
+      if (settleResult.code !== 0) {
+        this.setData({ isCompleting: false });
+        wx.hideLoading();
+        wx.showToast({
+          title: settleResult.message || '扣费失败，请重试',
+          icon: 'none',
+        });
+        return;
+      }
+    } catch (err) {
+      this.setData({ isCompleting: false });
+      wx.hideLoading();
+      wx.showToast({ title: '网络异常，请稍后重试', icon: 'none' });
+      return;
+    }
 
     const card = getCharacter(characterId);
     if (card) {
@@ -197,6 +229,8 @@ Page({
       saveCharacter(newCard);
     }
 
+    wx.hideLoading();
+
     // 弹窗提示完成
     wx.showModal({
       title: '创建成功',
@@ -204,6 +238,7 @@ Page({
       showCancel: false,
       confirmText: '返回首页',
       success: () => {
+        this.setData({ isCompleting: false });
         wx.switchTab({ url: '/pages/home/home' });
       },
     });
