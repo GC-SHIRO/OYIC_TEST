@@ -13,7 +13,7 @@ const _ = db.command
 
 // ===== Dify 配置 =====
 // 请在此处填入你的 Dify API Key
-const DIFY_API_KEY = 'app-DSWr4bHWVbGUYObbzeHMmtvz'
+const DIFY_API_KEY = 'app-mD9Vsigi6FuNlEDdPVbGx35R'
 const DIFY_BASE_URL = 'https://api.dify.ai/v1'
 const WELCOME_CONTENT = '你好！我是你的角色创作助手\n\n告诉我你的想法吧！可以是角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~'
 
