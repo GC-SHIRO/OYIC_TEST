@@ -422,12 +422,20 @@ Page({
       if (result.success && result.data) {
         // 检查角色卡信息完整性（abilities 和 relationships 为可选，不检查）
         const missingFields = this.checkCharacterCompleteness(result.data);
+        const missingFieldsBold = missingFields.map(field => `**${field}**`).join('、');
         if (missingFields.length > 0) {
           wx.hideLoading();
-          this.setData({ isGenerating: false });
-          wx.showModal({
+          this.setData({ isGenerating: false, messages: [...messages, {
+            id: `uncompleted_${Date.now()}`,
+            role: 'ai',
+            content: `当前角色信息不完整，缺失必要信息：${missingFieldsBold}，请与我对话补充细节后再生成吧！`,
+            timestamp: Date.now(),
+            userId: 'ai',
+          }]});
+          this.scrollToBottom();
+         /* wx.showModal({
             title: '角色信息不完整',
-            content: `以下信息缺失：${missingFields.join('、')}\n\n建议继续与 AI 对话补充细节后再生成。`,
+            content: `以下必要信息缺失：${missingFields.join('、')}\n\n建议继续与 AI 对话补充细节后再生成。`,
             confirmText: '继续生成',
             cancelText: '返回补充',
             success: (modalRes) => {
@@ -435,7 +443,7 @@ Page({
                 this.saveAndNavigateToPreview(result.data!, characterId);
               }
             },
-          });
+          });*/
           return;
         }
 
@@ -495,7 +503,7 @@ Page({
     }
 
     // 检查外观
-    if (!info.appearance || !info.appearance.detail) {
+    if (!info.appearance) {
       missing.push('外观描述');
     }
 
