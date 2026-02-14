@@ -48,7 +48,6 @@
     <view class="section">
       <view class="section-header">
         <view class="section-title">🎨 我的作品</view>
-        <view class="section-more" bindtap="onViewAllWorks">查看全部 →</view>
       </view>
       <scroll-view class="works-scroll" scroll-x enhanced show-scrollbar="{{false}}">
         <view 
