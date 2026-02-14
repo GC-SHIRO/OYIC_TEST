@@ -82,7 +82,7 @@
                 <text class="attr-value">{{character.appearance.hairColor}}</text>
               </view>
               <view class="appearance-attr">
-                <view class="attr-color-dot eye-dot"></view>
+                <view class="attr-color-dot hair-dot"></view>
                 <text class="attr-label">瞳色</text>
                 <text class="attr-value">{{character.appearance.eyeColor}}</text>
               </view>
