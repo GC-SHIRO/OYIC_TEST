@@ -6,6 +6,18 @@ import type {
 } from '../../types/character';
 import { getCharacter, saveCharacter, fetchCharacterFromCloud, PLACEHOLDER_IMAGE } from '../../services/storage';
 
+// 可编辑的 section 标识
+type EditSectionKey =
+  | 'basicInfo'
+  | 'personalityTags'
+  | 'appearance'
+  | 'personality'
+  | 'backstory'
+  | 'storyline'
+  | 'abilities'
+  | 'relationships'
+  | 'radar';
+
 Page({
   data: {
     characterId: '',
@@ -13,6 +25,8 @@ Page({
     loading: true,
     isCompleting: false,
     character: {} as ICharacterInfo,
+    /** 当前处于编辑状态的 section，空字符串表示未编辑 */
+    editingSection: '' as EditSectionKey | '',
   },
 
   onLoad(options: { characterId?: string; readonly?: string }) {
@@ -31,19 +45,39 @@ Page({
     this.loadCharacterDetail(characterId);
   },
 
+  /** 将六维图 0~1 旧数据转为 0~100 存储，便于统一展示与编辑 */
+  normalizeRadarTo100(char: ICharacterInfo): ICharacterInfo {
+    if (!char?.radar) return char;
+    const r = char.radar;
+    const to100 = (v: number) => (v != null && v <= 1 ? Math.round(v * 100) : (v ?? 50));
+    return {
+      ...char,
+      radar: {
+        extroversion: to100(r.extroversion),
+        rationality: to100(r.rationality),
+        kindness: to100(r.kindness),
+        courage: to100(r.courage),
+        openness: to100(r.openness),
+        responsibility: to100(r.responsibility),
+      },
+    };
+  },
+
   // 加载角色详情（云端优先）
   async loadCharacterDetail(characterId: string) {
     // 先尝试本地缓存快速渲染
     const localCard = getCharacter(characterId);
     if (localCard?.characterInfo?.name) {
-      this.setData({ character: localCard.characterInfo, loading: false });
+      const char = this.normalizeRadarTo100(localCard.characterInfo);
+      this.setData({ character: char, loading: false });
       setTimeout(() => this.drawRadarChart(), 300);
     }
 
     // 从云端拉取最新数据
     const cloudCard = await fetchCharacterFromCloud(characterId);
     if (cloudCard?.characterInfo?.name) {
-      this.setData({ character: cloudCard.characterInfo, loading: false });
+      const char = this.normalizeRadarTo100(cloudCard.characterInfo);
+      this.setData({ character: char, loading: false });
       setTimeout(() => this.drawRadarChart(), 300);
     } else if (!localCard?.characterInfo?.name) {
       this.setData({ loading: false });
@@ -76,10 +110,11 @@ Page({
         const maxR = Math.min(cx, cy) - 30;
         const levels = 5;
         const labels = ['外向度', '理智度', '善良度', '胆识度', '开放度', '责任感'];
-        const values = [
+        const raw = [
           radar.extroversion, radar.rationality, radar.kindness,
           radar.courage, radar.openness, radar.responsibility
         ];
+        const values = raw.map(v => (v != null && v > 1 ? v / 100 : (v ?? 0.5)));
         const sides = 6;
         const angleStep = (Math.PI * 2) / sides;
         const startAngle = -Math.PI / 2;
@@ -158,6 +193,153 @@ Page({
           ctx.fillText(labels[i], p.x, p.y);
         }
       });
+  },
+
+  /** 校验当前 section 是否有必填项为空，返回错误提示或空字符串 */
+  validateSectionEmpty(key: EditSectionKey): string {
+    const c = this.data.character;
+    if (!c) return '';
+
+    const empty = (s: string | undefined) => !s || !String(s).trim();
+
+    switch (key) {
+      case 'basicInfo':
+        if (empty(c.name)) return '姓名不能为空';
+        if (empty(c.gender)) return '性别不能为空';
+        if (empty(c.species)) return '物种不能为空';
+        break;
+      case 'personalityTags':
+        const tags = (c.personalityTags || []).filter(t => !empty(t));
+        if (!tags.length) return '请至少添加一个性格标签';
+        break;
+      case 'appearance':
+        if (empty(c.appearance?.hairColor)) return '发色不能为空';
+        if (empty(c.appearance?.eyeColor)) return '瞳色不能为空';
+        if (empty(c.appearance?.detail)) return '外观详细描述不能为空';
+        break;
+      case 'personality':
+        if (empty(c.personality)) return '性格描述不能为空';
+        break;
+      case 'backstory':
+        if (empty(c.backstory)) return '角色背景不能为空';
+        break;
+      case 'abilities':
+        if (c.abilities?.length) {
+          for (const a of c.abilities) {
+            if (empty(a.name)) return '能力名称不能为空';
+            if (empty(a.description)) return '能力描述不能为空';
+          }
+        }
+        break;
+      case 'relationships':
+        if (c.relationships?.length) {
+          for (const r of c.relationships) {
+            if (empty(r.character)) return '关系角色名不能为空';
+            if (empty(r.relation)) return '关系描述不能为空';
+          }
+        }
+        break;
+      case 'radar':
+        if (c.radar) {
+          const keys: (keyof typeof c.radar)[] = ['extroversion', 'rationality', 'kindness', 'courage', 'openness', 'responsibility'];
+          for (const k of keys) {
+            const v = c.radar[k];
+            if (v == null || (typeof v === 'number' && (v < 0 || v > 100))) return '六维图数值须为 0~100 的整数';
+          }
+        }
+        break;
+      case 'storyline':
+        break;
+    }
+    return '';
+  },
+
+  /** 添加性格标签 */
+  onAddPersonalityTag() {
+    const c = JSON.parse(JSON.stringify(this.data.character));
+    if (!Array.isArray(c.personalityTags)) c.personalityTags = [];
+    c.personalityTags.push('');
+    this.setData({ character: c });
+  },
+
+  /** 切换编辑模式：点击「编辑」进入编辑，点击「完成编辑」保存并同步云端 */
+  onToggleEdit(e: WechatMiniprogram.TouchEvent) {
+    const key = (e.currentTarget.dataset.section || '') as EditSectionKey;
+    const { editingSection } = this.data;
+    if (!key) return;
+
+    if (editingSection === key) {
+      let c = this.data.character;
+      if (key === 'personalityTags' && Array.isArray(c.personalityTags)) {
+        c = { ...c, personalityTags: c.personalityTags.filter(t => t && String(t).trim()) };
+        this.setData({ character: c });
+      }
+      const err = this.validateSectionEmpty(key);
+      if (err) {
+        wx.showToast({ title: err, icon: 'none' });
+        return;
+      }
+      // 完成编辑：退出编辑模式并同步云端
+      this.setData({ editingSection: '' });
+      this.syncCharacterToCloud();
+      if (key === 'radar') setTimeout(() => this.drawRadarChart(), 100);
+    } else {
+      // 进入编辑模式
+      this.setData({ editingSection: key });
+    }
+  },
+
+  /** 字段输入时更新本地 character */
+  onFieldInput(e: WechatMiniprogram.Input) {
+    const { path, index, subfield } = e.currentTarget.dataset as {
+      path?: string;
+      index?: number;
+      subfield?: string;
+    };
+    const value = e.detail.value;
+    if (!path) return;
+
+    const character = JSON.parse(JSON.stringify(this.data.character));
+    if (index !== undefined && index !== null) {
+      const arr = character[path];
+      if (!arr || !Array.isArray(arr)) return;
+      if (subfield) {
+        if (!arr[index]) arr[index] = {};
+        arr[index] = { ...arr[index], [subfield]: value };
+      } else {
+        arr[index] = value;
+      }
+    } else {
+      const parts = path.split('.');
+      let target: any = character;
+      for (let i = 0; i < parts.length - 1; i++) {
+        const p = parts[i];
+        if (!target[p]) target[p] = {};
+        target = target[p];
+      }
+      // 六维图数值：0~100 整数，雷达图绘制时会除以 100
+      let finalValue: string | number = value;
+      if (path.startsWith('radar.')) {
+        const num = parseInt(value, 10);
+        finalValue = isNaN(num) ? 50 : Math.max(0, Math.min(100, num));
+      }
+      target[parts[parts.length - 1]] = finalValue;
+    }
+    this.setData({ character });
+  },
+
+  /** 同步角色卡到云端（编辑完成后调用） */
+  async syncCharacterToCloud() {
+    const { character, characterId } = this.data;
+    if (!characterId || !character?.name) return;
+
+    const card = getCharacter(characterId);
+    if (card) {
+      card.characterInfo = character;
+      card.updatedAt = Date.now();
+      saveCharacter(card);
+      wx.showToast({ title: '已保存到云端', icon: 'success' });
+    }
   },
 
   // 返回

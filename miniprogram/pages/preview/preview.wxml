@@ -29,27 +29,35 @@
         <view class="preview-body">
           <!-- 基本信息 -->
           <view class="info-section">
-            <view class="section-title">基本信息</view>
+            <view class="section-header">
+              <view class="section-title">基本信息</view>
+              <view class="section-edit-btn" bindtap="onToggleEdit" data-section="basicInfo">{{editingSection === 'basicInfo' ? '完成编辑' : '编辑'}}</view>
+            </view>
             <view class="section-content">
               <view class="info-item">
                 <text class="info-label">姓名：</text>
-                <text class="info-value">{{character.name}}</text>
+                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input" value="{{character.name}}" data-path="name" bindinput="onFieldInput" placeholder="请输入姓名" /></block>
+                <text wx:else class="info-value">{{character.name}}</text>
               </view>
               <view class="info-item">
                 <text class="info-label">性别：</text>
-                <text class="info-value">{{character.gender}}</text>
+                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input" value="{{character.gender}}" data-path="gender" bindinput="onFieldInput" placeholder="请输入性别" /></block>
+                <text wx:else class="info-value">{{character.gender}}</text>
               </view>
               <view class="info-item">
                 <text class="info-label">星座：</text>
-                <text class="info-value">{{character.constellation}}</text>
+                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input" value="{{character.constellation}}" data-path="constellation" bindinput="onFieldInput" placeholder="请输入星座" /></block>
+                <text wx:else class="info-value">{{character.constellation}}</text>
               </view>
               <view class="info-item">
                 <text class="info-label">生日：</text>
-                <text class="info-value">{{character.birthday}}</text>
+                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input" value="{{character.birthday}}" data-path="birthday" bindinput="onFieldInput" placeholder="请输入生日" /></block>
+                <text wx:else class="info-value">{{character.birthday}}</text>
               </view>
               <view class="info-item">
                 <text class="info-label">物种：</text>
-                <text class="info-value">{{character.species}}</text>
+                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input" value="{{character.species}}" data-path="species" bindinput="onFieldInput" placeholder="请输入物种" /></block>
+                <text wx:else class="info-value">{{character.species}}</text>
               </view>
             </view>
           </view>
@@ -58,15 +66,20 @@
           
           <!-- 性格标签 -->
           <view class="info-section">
-            <view class="section-title">性格标签</view>
+            <view class="section-header">
+              <view class="section-title">性格标签</view>
+              <view class="section-edit-btn" bindtap="onToggleEdit" data-section="personalityTags">{{editingSection === 'personalityTags' ? '完成编辑' : '编辑'}}</view>
+            </view>
             <view class="personality-tags">
-              <view 
-                wx:for="{{character.personalityTags}}" 
-                wx:key="*this"
-                class="personality-tag"
-              >
-                {{item}}
-              </view>
+              <block wx:if="{{editingSection === 'personalityTags'}}">
+                <view wx:for="{{character.personalityTags}}" wx:key="*this" class="personality-tag-edit">
+                  <input class="tag-input" value="{{item}}" data-path="personalityTags" data-index="{{index}}" bindinput="onFieldInput" placeholder="标签" />
+                </view>
+                <view class="personality-tag-add" bindtap="onAddPersonalityTag">+</view>
+              </block>
+              <block wx:else>
+                <view wx:for="{{character.personalityTags}}" wx:key="*this" class="personality-tag">{{item}}</view>
+              </block>
             </view>
           </view>
           
@@ -74,21 +87,27 @@
           
           <!-- 外观描述 -->
           <view class="info-section">
-            <view class="section-title">外观描述</view>
+            <view class="section-header">
+              <view class="section-title">外观描述</view>
+              <view class="section-edit-btn" bindtap="onToggleEdit" data-section="appearance">{{editingSection === 'appearance' ? '完成编辑' : '编辑'}}</view>
+            </view>
             <view class="appearance-attrs">
               <view class="appearance-attr">
                 <view class="attr-color-dot hair-dot"></view>
                 <text class="attr-label">发色</text>
-                <text class="attr-value">{{character.appearance.hairColor}}</text>
+                <block wx:if="{{editingSection === 'appearance'}}"><input class="attr-input" value="{{character.appearance.hairColor}}" data-path="appearance.hairColor" bindinput="onFieldInput" placeholder="发色" /></block>
+                <text wx:else class="attr-value">{{character.appearance.hairColor}}</text>
               </view>
               <view class="appearance-attr">
                 <view class="attr-color-dot hair-dot"></view>
                 <text class="attr-label">瞳色</text>
-                <text class="attr-value">{{character.appearance.eyeColor}}</text>
+                <block wx:if="{{editingSection === 'appearance'}}"><input class="attr-input" value="{{character.appearance.eyeColor}}" data-path="appearance.eyeColor" bindinput="onFieldInput" placeholder="瞳色" /></block>
+                <text wx:else class="attr-value">{{character.appearance.eyeColor}}</text>
               </view>
             </view>
             <view class="appearance-detail-wrap">
-              <text class="appearance-detail">{{character.appearance.detail}}</text>
+              <block wx:if="{{editingSection === 'appearance'}}"><textarea class="appearance-detail-input" value="{{character.appearance.detail}}" data-path="appearance.detail" bindinput="onFieldInput" placeholder="详细外观描述" /></block>
+              <text wx:else class="appearance-detail">{{character.appearance.detail}}</text>
             </view>
           </view>
           
@@ -96,9 +115,13 @@
           
           <!-- 性格描述 -->
           <view class="info-section">
-            <view class="section-title">性格描述</view>
+            <view class="section-header">
+              <view class="section-title">性格描述</view>
+              <view class="section-edit-btn" bindtap="onToggleEdit" data-section="personality">{{editingSection === 'personality' ? '完成编辑' : '编辑'}}</view>
+            </view>
             <view class="section-content">
-              <text class="long-text">{{character.personality}}</text>
+              <block wx:if="{{editingSection === 'personality'}}"><textarea class="long-text-input" value="{{character.personality}}" data-path="personality" bindinput="onFieldInput" placeholder="请输入性格描述" /></block>
+              <text wx:else class="long-text">{{character.personality}}</text>
             </view>
           </view>
           
@@ -106,55 +129,72 @@
           
           <!-- 角色背景 -->
           <view class="info-section">
-            <view class="section-title">角色背景</view>
+            <view class="section-header">
+              <view class="section-title">角色背景</view>
+              <view class="section-edit-btn" bindtap="onToggleEdit" data-section="backstory">{{editingSection === 'backstory' ? '完成编辑' : '编辑'}}</view>
+            </view>
             <view class="section-content">
-              <text class="long-text">{{character.backstory}}</text>
+              <block wx:if="{{editingSection === 'backstory'}}"><textarea class="long-text-input" value="{{character.backstory}}" data-path="backstory" bindinput="onFieldInput" placeholder="请输入角色背景" /></block>
+              <text wx:else class="long-text">{{character.backstory}}</text>
             </view>
           </view>
           
           <!-- 故事线（可选） -->
-          <block wx:if="{{character.storyline}}">
-            <view class="section-divider"></view>
-            <view class="info-section">
+          <view class="section-divider"></view>
+          <view class="info-section">
+            <view class="section-header">
               <view class="section-title">故事线</view>
-              <view class="section-content">
-                <text class="long-text">{{character.storyline}}</text>
-              </view>
+              <view class="section-edit-btn" bindtap="onToggleEdit" data-section="storyline">{{editingSection === 'storyline' ? '完成编辑' : '编辑'}}</view>
             </view>
-          </block>
+            <view class="section-content">
+              <block wx:if="{{editingSection === 'storyline'}}"><textarea class="long-text-input" value="{{character.storyline}}" data-path="storyline" bindinput="onFieldInput" placeholder="请输入故事线" /></block>
+              <text wx:else class="long-text">{{character.storyline || '暂无故事线，点击编辑添加'}}</text>
+            </view>
+          </view>
           
           <!-- 特殊能力（可选） -->
-          <block wx:if="{{character.abilities.length > 0}}">
+          <block wx:if="{{character.abilities && character.abilities.length > 0}}">
             <view class="section-divider"></view>
             <view class="info-section">
-              <view class="section-title">特殊能力</view>
+              <view class="section-header">
+                <view class="section-title">特殊能力</view>
+                <view class="section-edit-btn" bindtap="onToggleEdit" data-section="abilities">{{editingSection === 'abilities' ? '完成编辑' : '编辑'}}</view>
+              </view>
               <view class="ability-list">
-                <view 
-                  wx:for="{{character.abilities}}" 
-                  wx:key="name"
-                  class="ability-item"
-                >
-                  <text class="ability-name">{{item.name}}</text>
-                  <text class="ability-desc">{{item.description}}</text>
+                <view wx:for="{{character.abilities}}" wx:key="name" class="ability-item">
+                  <block wx:if="{{editingSection === 'abilities'}}">
+                    <input class="ability-input" value="{{item.name}}" data-path="abilities" data-index="{{index}}" data-subfield="name" bindinput="onFieldInput" placeholder="能力名称" />
+                    <textarea class="ability-desc-input" value="{{item.description}}" data-path="abilities" data-index="{{index}}" data-subfield="description" bindinput="onFieldInput" placeholder="能力描述" />
+                  </block>
+                  <block wx:else>
+                    <text class="ability-name">{{item.name}}</text>
+                    <text class="ability-desc">{{item.description}}</text>
+                  </block>
                 </view>
               </view>
             </view>
           </block>
           
           <!-- 关系网（可选） -->
-          <block wx:if="{{character.relationships.length > 0}}">
+          <block wx:if="{{character.relationships && character.relationships.length > 0}}">
             <view class="section-divider"></view>
             <view class="info-section">
-              <view class="section-title">关系网</view>
+              <view class="section-header">
+                <view class="section-title">关系网</view>
+                <view class="section-edit-btn" bindtap="onToggleEdit" data-section="relationships">{{editingSection === 'relationships' ? '完成编辑' : '编辑'}}</view>
+              </view>
               <view class="relationship-list">
-                <view 
-                  wx:for="{{character.relationships}}" 
-                  wx:key="character"
-                  class="relationship-item"
-                >
-                  <text class="rel-character">{{item.character}}</text>
-                  <text class="rel-arrow">→</text>
-                  <text class="rel-desc">{{item.relation}}</text>
+                <view wx:for="{{character.relationships}}" wx:key="character" class="relationship-item">
+                  <block wx:if="{{editingSection === 'relationships'}}">
+                    <input class="rel-input" value="{{item.character}}" data-path="relationships" data-index="{{index}}" data-subfield="character" bindinput="onFieldInput" placeholder="角色" />
+                    <text class="rel-arrow">→</text>
+                    <input class="rel-input flex-1" value="{{item.relation}}" data-path="relationships" data-index="{{index}}" data-subfield="relation" bindinput="onFieldInput" placeholder="关系" />
+                  </block>
+                  <block wx:else>
+                    <text class="rel-character">{{item.character}}</text>
+                    <text class="rel-arrow">→</text>
+                    <text class="rel-desc">{{item.relation}}</text>
+                  </block>
                 </view>
               </view>
             </view>
@@ -164,33 +204,42 @@
           <block wx:if="{{character.radar}}">
             <view class="section-divider"></view>
             <view class="info-section">
-              <view class="section-title">性格六维图</view>
+              <view class="section-header">
+                <view class="section-title">性格六维图</view>
+                <view class="section-edit-btn" bindtap="onToggleEdit" data-section="radar">{{editingSection === 'radar' ? '完成编辑' : '编辑'}}</view>
+              </view>
               <view class="radar-section">
                 <canvas type="2d" id="radarCanvas" class="radar-canvas"></canvas>
-                <view class="radar-legends">
+                <view class="radar-legends {{editingSection === 'radar' ? 'radar-legends-visible' : ''}}">
                   <view class="radar-legend-item">
                     <text class="legend-label">外向度</text>
-                    <text class="legend-value">{{character.radar.extroversion}}</text>
+                    <block wx:if="{{editingSection === 'radar'}}"><view class="radar-input-wrap"><input class="radar-input" type="number" value="{{character.radar.extroversion}}" data-path="radar.extroversion" bindinput="onFieldInput" placeholder="0-100" /><text class="radar-hint">/100</text></view></block>
+                    <text wx:else class="legend-value">{{character.radar.extroversion}}/100</text>
                   </view>
                   <view class="radar-legend-item">
                     <text class="legend-label">理智度</text>
-                    <text class="legend-value">{{character.radar.rationality}}</text>
+                    <block wx:if="{{editingSection === 'radar'}}"><view class="radar-input-wrap"><input class="radar-input" type="number" value="{{character.radar.rationality}}" data-path="radar.rationality" bindinput="onFieldInput" placeholder="0-100" /><text class="radar-hint">/100</text></view></block>
+                    <text wx:else class="legend-value">{{character.radar.rationality}}/100</text>
                   </view>
                   <view class="radar-legend-item">
                     <text class="legend-label">善良度</text>
-                    <text class="legend-value">{{character.radar.kindness}}</text>
+                    <block wx:if="{{editingSection === 'radar'}}"><view class="radar-input-wrap"><input class="radar-input" type="number" value="{{character.radar.kindness}}" data-path="radar.kindness" bindinput="onFieldInput" placeholder="0-100" /><text class="radar-hint">/100</text></view></block>
+                    <text wx:else class="legend-value">{{character.radar.kindness}}/100</text>
                   </view>
                   <view class="radar-legend-item">
                     <text class="legend-label">胆识度</text>
-                    <text class="legend-value">{{character.radar.courage}}</text>
+                    <block wx:if="{{editingSection === 'radar'}}"><view class="radar-input-wrap"><input class="radar-input" type="number" value="{{character.radar.courage}}" data-path="radar.courage" bindinput="onFieldInput" placeholder="0-100" /><text class="radar-hint">/100</text></view></block>
+                    <text wx:else class="legend-value">{{character.radar.courage}}/100</text>
                   </view>
                   <view class="radar-legend-item">
                     <text class="legend-label">开放度</text>
-                    <text class="legend-value">{{character.radar.openness}}</text>
+                    <block wx:if="{{editingSection === 'radar'}}"><view class="radar-input-wrap"><input class="radar-input" type="number" value="{{character.radar.openness}}" data-path="radar.openness" bindinput="onFieldInput" placeholder="0-100" /><text class="radar-hint">/100</text></view></block>
+                    <text wx:else class="legend-value">{{character.radar.openness}}/100</text>
                   </view>
                   <view class="radar-legend-item">
                     <text class="legend-label">责任感</text>
-                    <text class="legend-value">{{character.radar.responsibility}}</text>
+                    <block wx:if="{{editingSection === 'radar'}}"><view class="radar-input-wrap"><input class="radar-input" type="number" value="{{character.radar.responsibility}}" data-path="radar.responsibility" bindinput="onFieldInput" placeholder="0-100" /><text class="radar-hint">/100</text></view></block>
+                    <text wx:else class="legend-value">{{character.radar.responsibility}}/100</text>
                   </view>
                 </view>
               </view>
