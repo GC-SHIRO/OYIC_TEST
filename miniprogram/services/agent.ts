@@ -4,6 +4,7 @@
  * API 密钥安全存放在云端，前端不暴露任何密钥
  */
 
+import { compareVersion } from '../miniprogram_npm/tdesign-miniprogram/common/version';
 import type { ICharacterInfo } from '../types/character';
 
 // ========== 类型定义 ==========
@@ -107,17 +108,18 @@ export async function generateCharacterCard(
     }
 
     const rawAnswer = response.message || '';
-
+    console.log('原始 Dify 回复:', rawAnswer);
     // 尝试从回复中提取 JSON（Dify 可能在 JSON 外包裹 markdown 代码块）
     const characterInfo = parseCharacterJSON(rawAnswer);
-
+    console.log('解析后的角色信息:', characterInfo);
     if (characterInfo) {
       return {
         success: true,
         data: characterInfo,
         conversationId: response.conversationId,
       };
-    } else {
+    } 
+    else {
       return {
         success: false,
         error: '无法解析角色卡数据，请重试',
@@ -136,16 +138,19 @@ export async function generateCharacterCard(
 
 /**
  * 从 Dify 回复文本中解析角色卡 JSON
- * 支持纯 JSON、```json ... ``` 包裹、以及 Python 风格单引号
  */
 function parseCharacterJSON(text: string): ICharacterInfo | null {
-  if (!text) return null;
+  if (!text) {
+    console.error('解析失败: 文本为空');
+    return null;
+  }
 
-  // 1. 尝试提取 ```json ... ``` 代码块
+  console.log('开始解析，原始文本长度:', text.length);
+  
+  // 1. 提取内容
   const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
   let jsonStr = codeBlockMatch ? codeBlockMatch[1].trim() : text.trim();
 
-  // 2. 如果没有代码块，尝试提取 { ... } 之间的内容
   if (!codeBlockMatch) {
     const firstBrace = jsonStr.indexOf('{');
     const lastBrace = jsonStr.lastIndexOf('}');
@@ -154,17 +159,46 @@ function parseCharacterJSON(text: string): ICharacterInfo | null {
     }
   }
 
-  // 3. 尝试直接解析
-  const obj = tryParseJSON(jsonStr);
-  if (obj) return normalizeCharacterInfo(obj);
+  console.log('提取的字符串:', jsonStr.substring(0, 200));
 
-  // 4. 尝试将 Python 风格单引号转为双引号后解析
-  const fixed = fixPythonQuotes(jsonStr);
-  const obj2 = tryParseJSON(fixed);
-  if (obj2) return normalizeCharacterInfo(obj2);
+  // 2. Python 转 JSON（改进版）
+  jsonStr = convertPythonToJson(jsonStr);
+  console.log('转换后:', jsonStr.substring(0, 200));
 
-  console.error('角色卡 JSON 解析失败，原始文本:', jsonStr.substring(0, 500));
-  return null;
+  // 3. 尝试解析
+  try {
+    const obj = JSON.parse(jsonStr);
+    console.log('解析成功');
+    return normalizeCharacterInfo(obj);
+  } catch (e: any) {
+    console.error('JSON 解析失败:', e.message);
+    console.error('问题文本:', jsonStr.substring(0, 500));
+    return null;
+  }
+}
+
+/**
+ * 将 Python 字典转换为 JSON（改进版）
+ */
+function convertPythonToJson(text: string): string {
+  // 步骤 1: 替换 Python 关键字
+  let result = text
+    .replace(/\bNone\b/g, 'null')
+    .replace(/\bTrue\b/g, 'true')
+    .replace(/\bFalse\b/g, 'false');
+
+  // 步骤 2: 使用正则替换单引号（更精确的模式）
+  // 匹配: '字符串内容' 其中内容不包含未转义的单引号
+  result = result.replace(
+    /'([^'\\]*(?:\\.[^'\\]*)*)'/g, 
+    (match, content) => {
+      // 将内容中的双引号转义
+      const escaped = content.replace(/"/g, '\\"');
+      return `"${escaped}"`;
+    }
+  );
+
+  return result;
 }
 
 /**
