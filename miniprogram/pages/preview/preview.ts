@@ -9,6 +9,7 @@ import { getCharacter, saveCharacter, fetchCharacterFromCloud, PLACEHOLDER_IMAGE
 // 可编辑的 section 标识
 type EditSectionKey =
   | 'basicInfo'
+  | 'introduction'
   | 'personalityTags'
   | 'appearance'
   | 'personality'
@@ -45,7 +46,9 @@ Page({
     this.loadCharacterDetail(characterId);
   },
 
-  /** 将六维图 0~1 旧数据转为 0~100 存储，便于统一展示与编辑 */
+  /** 将六维图 0~1 旧数据转为 0~100 存储，便于统一展示与编辑
+   * todo：删档之后可以删除本函数及相关兼容逻辑
+   */
   normalizeRadarTo100(char: ICharacterInfo): ICharacterInfo {
     if (!char?.radar) return char;
     const r = char.radar;
@@ -208,6 +211,8 @@ Page({
         if (empty(c.gender)) return '性别不能为空';
         if (empty(c.species)) return '物种不能为空';
         break;
+      case 'introduction':
+        break;
       case 'personalityTags':
         const tags = (c.personalityTags || []).filter(t => !empty(t));
         if (!tags.length) return '请至少添加一个性格标签';
@@ -244,7 +249,7 @@ Page({
           const keys: (keyof typeof c.radar)[] = ['extroversion', 'rationality', 'kindness', 'courage', 'openness', 'responsibility'];
           for (const k of keys) {
             const v = c.radar[k];
-            if (v == null || (typeof v === 'number' && (v < 0 || v > 100))) return '六维图数值须为 0~100 的整数';
+            if (v == null || typeof v !== 'number' || Number.isNaN(v) || v < 0 || v > 100) return '六维图数值须为 0~100 的整数';
           }
         }
         break;
@@ -281,6 +286,7 @@ Page({
       }
       // 完成编辑：退出编辑模式并同步云端
       this.setData({ editingSection: '' });
+      console.log('[preview] 保存内容', { section: key, character: this.data.character });
       this.syncCharacterToCloud();
       if (key === 'radar') setTimeout(() => this.drawRadarChart(), 100);
     } else {
@@ -320,8 +326,20 @@ Page({
       // 六维图数值：0~100 整数，雷达图绘制时会除以 100
       let finalValue: string | number = value;
       if (path.startsWith('radar.')) {
-        const num = parseInt(value, 10);
-        finalValue = isNaN(num) ? 50 : Math.max(0, Math.min(100, num));
+        if (value === '') {
+          finalValue = '';
+        } else {
+          const num = Number(value);
+          if (Number.isNaN(num)) {
+            finalValue = 0;
+          } else if (num < 0) {
+            finalValue = 0;
+          } else if (num > 100) {
+            finalValue = 100;
+          } else {
+            finalValue = Math.round(num);
+          }
+        }
       }
       target[parts[parts.length - 1]] = finalValue;
     }
@@ -335,10 +353,16 @@ Page({
 
     const card = getCharacter(characterId);
     if (card) {
-      card.characterInfo = character;
-      card.updatedAt = Date.now();
-      saveCharacter(card);
-      wx.showToast({ title: '已保存到云端', icon: 'success' });
+      try {
+        card.characterInfo = character;
+        card.updatedAt = Date.now();
+        saveCharacter(card);
+        console.log('[preview] 上传成功', { characterId, character });
+        wx.showToast({ title: '已保存到云端', icon: 'success' });
+      } catch (error) {
+        console.error('[preview] 上传失败', { characterId, error });
+        wx.showToast({ title: '上传失败，请稍后重试', icon: 'none' });
+      }
     }
   },
 

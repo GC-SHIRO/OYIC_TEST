@@ -22,8 +22,14 @@
       <view class="character-preview">
         <!-- 头部：姓名 -->
         <view class="preview-header">
+          <view class="preview-header-tools">
+            <view class="section-edit-btn intro-edit-btn" bindtap="onToggleEdit" data-section="introduction">{{editingSection === 'introduction' ? '完成编辑' : '编辑简介'}}</view>
+          </view>
           <view class="character-name">{{character.name}}</view>
-          <view class="character-intro">{{character.introduction}}</view>
+          <block wx:if="{{editingSection === 'introduction'}}">
+            <textarea class="long-text-input" value="{{character.introduction}}" data-path="introduction" bindinput="onFieldInput" placeholder="请输入简介" />
+          </block>
+          <text wx:else class="character-intro">{{character.introduction}}</text>
         </view>
         
         <view class="preview-body">

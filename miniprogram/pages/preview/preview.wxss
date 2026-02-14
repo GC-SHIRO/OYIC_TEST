@@ -15,6 +15,11 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 2rpx solid rgba(229, 231, 235, 0.8);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
 }
 
 .nav-back {
@@ -42,7 +47,7 @@
 /* 内容区域 */
 .content-container {
   flex: 1;
-  padding: 40rpx 32rpx 0;
+  padding: 200rpx 32rpx 0;
   box-sizing: border-box;
 }
 
@@ -80,6 +85,18 @@
   padding: 64rpx 48rpx;
   color: #111827;
   text-align: center;
+  position: relative;
+}
+
+.preview-header-tools {
+  position: absolute;
+  top: 24rpx;
+  right: 24rpx;
+}
+
+.intro-edit-btn {
+  font-size: 22rpx;
+  padding: 6rpx 18rpx;
 }
 
 .character-name {
