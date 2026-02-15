@@ -1,15 +1,15 @@
 module.exports = {
-  TOKEN_UNIT: 1000,
-  TOKEN_COST: 30,
+  TOKEN_UNIT: 10, // 统计粒度：每10 tokens算1单位
+  TOKEN_COST: 1,  // 每单位消耗1点
   CARD_GEN_COST: 80,
   REGISTER_BONUS: 120,
   SHARE_DAILY_BONUS: 120,
-  RECHARGE_RATE: 100,
+  RECHARGE_RATE: 1000, // 充值1元=1000点
   RECHARGE_PACKS: [
-    { price: 12, points: 1200, bonus: 120 },
-    { price: 30, points: 3500, bonusText: '多送 15%', isHot: true },
-    { price: 68, points: 8000, bonus: 1200 },
-    { price: 128, points: 16000, bonus: 3000 },
+    { price: 6, points: 6000, bonus: 6300 },
+    { price: 12, points: 13200, bonusText: '多送 10%', isHot: true },
+    { price: 30, points: 36000, bonus: 6000 },
+    { price: 68, points: 88400, bonus: 20400 },
   ],
   ACTIVITY: {
     title: '分享得创作点',
