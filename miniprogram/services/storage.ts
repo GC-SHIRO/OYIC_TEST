@@ -19,6 +19,7 @@ export interface IMessage {
   animate?: boolean;
   transient?: boolean;
   pending?: boolean;
+  pendingText?: string; // AI思考中显示的文本
   requestId?: string;
   userId?: string;
 }

@@ -33,7 +33,12 @@
           <!-- 消息气泡部分 -->
           <view class="message-bubble">
             <view wx:if="{{item.pending}}" class="typing-row">
-              <text>AI正在思考中</text>
+              <view class="pending-text-wrap" wx:if="{{item.pendingText}}" style="animation: text-fade 0.4s ease-in-out">
+                <text class="pending-text">{{item.pendingText}}</text>
+              </view>
+              <view wx:else class="pending-text-wrap">
+                <text class="pending-text">正在思考中</text>
+              </view>
               <t-loading theme="dots" size="28rpx" />
             </view>
             <!-- 使用 Markdown 渲染 AI 消息，用户消息保持纯文本 -->

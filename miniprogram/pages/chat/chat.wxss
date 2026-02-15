@@ -166,6 +166,28 @@ page {
   color: #6b7280;
 }
 
+.pending-text-wrap {
+  display: inline-block;
+}
+
+.pending-text {
+  display: inline-block;
+}
+
+@keyframes text-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(-8rpx);
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* 用户消息（右侧） */
 .message-user {
   align-self: flex-end;

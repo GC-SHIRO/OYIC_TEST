@@ -16,6 +16,15 @@ import { chatWithDify, generateCharacterCard } from '../../services/agent';
 const WELCOME_CONTENT = '你好！我是你的角色创作助手\n\n告诉我你的想法吧！可以是角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~';
 const DIFY_ERROR_TEXT = 'AI服务出现错误，请联系管理员处理';
 
+// AI思考中轮播文本（可自定义）
+const PENDING_TEXTS = [
+  '正在思考中',
+  '正在整合变量',
+  '正在构建角色信息',
+  '正在整理回复',
+  '正在准备接收回复',
+];
+
 // 打字机效果状态（模块级变量）
 let _typewriterTimer: any = null;
 let _typewriterFullText = '';
@@ -24,6 +33,10 @@ let _pendingBlockModalShowing = false;
 let _pendingSyncTimer: any = null;
 let _exitGiveResultInFlight = false;
 let _exitGiveResultForCard = '';
+
+// AI思考中轮播状态
+let _pendingTextTimer: any = null;
+let _currentPendingTextIndex = 0;
 
 Page({
   data: {
@@ -52,6 +65,7 @@ Page({
 
   onHide() {
     this.stopPendingSync();
+    this.stopPendingTextRotation();
     this.requestGiveResultOnExit();
   },
 
@@ -156,6 +170,8 @@ Page({
       };
 
       const newMessages = [...messages, userMessage];
+      // 从第一个文本开始（按顺序播放）
+      _currentPendingTextIndex = 0;
       const aiPlaceholder: IMessage = {
         id: `ai_${requestId}`,
         role: 'ai',
@@ -163,6 +179,7 @@ Page({
         timestamp: Date.now(),
         animate: true,
         pending: true,
+        pendingText: PENDING_TEXTS[_currentPendingTextIndex],
         requestId,
         userId: 'ai',
       };
@@ -174,6 +191,9 @@ Page({
       });
       await new Promise<void>((resolve) => wx.nextTick(resolve));
       this.scrollToBottom();
+
+      // 启动思考中文本轮播
+      this.startPendingTextRotation(aiPlaceholder.id);
 
       const pendingId = aiPlaceholder.id;
 
@@ -235,14 +255,21 @@ Page({
         const msgIndex = this.findMessageIndexById(pendingId);
         if (msgIndex >= 0) {
           this.setData({ [`messages[${msgIndex}].pending`]: false });
+          // 停止思考中文本轮播
+          this.stopPendingTextRotation();
           // 启动打字机流式显示
           this.streamDisplayMessage(response.message, msgIndex);
         } else {
+          // 停止思考中文本轮播
+          this.stopPendingTextRotation();
           const fallbackMessages = this.appendAiFallbackMessage(requestId);
           this.setData({ messages: fallbackMessages });
           this.streamDisplayMessage(response.message, fallbackMessages.length - 1);
         }
       } else {
+        // 停止思考中文本轮播
+        this.stopPendingTextRotation();
+
         const errDetail = response.error || response.message || '未知错误';
         console.error('Dify 调用失败，详细原因:', errDetail);
         const failText = 'AI服务出现错误，请联系管理员处理';
@@ -518,6 +545,7 @@ Page({
   // 页面卸载时清理
   onUnload() {
     this.stopPendingSync();
+    this.stopPendingTextRotation();
     this.finishTypewriter();
     this.saveConversation();
     this.requestGiveResultOnExit();
@@ -605,6 +633,49 @@ Page({
     });
   },
 
+  // 启动思考中文本轮播（按顺序播放）
+  startPendingTextRotation(messageId: string) {
+    this.stopPendingTextRotation();
+    _currentPendingTextIndex = 0; // 从第一个开始，按顺序播放
+
+    // 启动轮播
+    this.runPendingTextRotation(messageId);
+  },
+
+  // 执行单次轮播（每次间隔3-8秒随机）
+  runPendingTextRotation(messageId: string) {
+    const msgIndex = this.findMessageIndexById(messageId);
+    if (msgIndex < 0) {
+      this.stopPendingTextRotation();
+      return;
+    }
+    const msg = this.data.messages[msgIndex];
+    if (!msg || !msg.pending) {
+      this.stopPendingTextRotation();
+      return;
+    }
+
+    // 顺序切换到下一个文本
+    _currentPendingTextIndex = (_currentPendingTextIndex + 1) % PENDING_TEXTS.length;
+    this.setData({
+      [`messages[${msgIndex}].pendingText`]: PENDING_TEXTS[_currentPendingTextIndex],
+    });
+
+    // 3-8秒后执行下一次轮播
+    const nextInterval = 3000 + Math.random() * 5000;
+    _pendingTextTimer = setTimeout(() => {
+      this.runPendingTextRotation(messageId);
+    }, nextInterval);
+  },
+
+  // 停止思考中文本轮播
+  stopPendingTextRotation() {
+    if (_pendingTextTimer) {
+      clearTimeout(_pendingTextTimer);
+      _pendingTextTimer = null;
+    }
+  },
+
   // 打字机流式显示 AI 回复
   streamDisplayMessage(fullText: string, msgIndex: number) {
     this.finishTypewriter();
@@ -621,7 +692,7 @@ Page({
     let scrollTick = 0;
     // 根据文本长度调整每次显示字符数和间隔
     const batchSize = fullText.length > 500 ? 8 : 3;
-    const interval = 50; // 降低频率，减少 setData 次数
+    const interval = 10; // 降低频率，减少 setData 次数
 
     _typewriterTimer = setInterval(() => {
       charIndex = Math.min(charIndex + batchSize, fullText.length);

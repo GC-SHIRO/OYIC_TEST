@@ -62,6 +62,8 @@ export async function chatWithDify(
 
     const result = res.result as any;
 
+    console.log('调用结果:', JSON.stringify(result));
+
     if (result.code === 0 && result.data) {
       return {
         success: true,
@@ -70,6 +72,7 @@ export async function chatWithDify(
         data: result.data,
       };
     } else {
+      console.log('调用失败:', result.message || '未知错误', result.error || '');
       return {
         success: false,
         message: result.message || '调用失败',
