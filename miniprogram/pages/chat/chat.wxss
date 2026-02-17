@@ -84,6 +84,7 @@ page {
   display: flex;
   flex-direction: column;
   gap: 32rpx;
+  padding-top: 56rpx;
 }
 
 .bottom-placeholder {
