@@ -16,7 +16,7 @@ const _ = db.command
 const CHAT_PROVIDER = 'dify' // 'dify' 或 'coze'
 
 // Dify 配置
-const DIFY_API_KEY = 'app-DGu2SMOta7HNZRP9kPjLcXRn'
+const DIFY_API_KEY = 'app-AgVIxZ1CKsps5s5JaiJWs14x'
 const DIFY_BASE_URL = 'https://api.dify.ai/v1'
 
 // Coze 配置（请替换为你的实际值）
