@@ -12,6 +12,7 @@ import {
 } from '../../services/storage';
 import type { IAgentResponse } from '../../services/agent';
 import { chatWithDify, generateCharacterCard } from '../../services/agent';
+import { uploadImagesToCloud } from '../../services/image';
 
 const WELCOME_CONTENT = '你好！我是你的角色创作助手\n\n告诉我你的想法吧！可以是角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~';
 const DIFY_ERROR_TEXT = 'AI服务出现错误，请联系管理员处理';
@@ -353,44 +354,83 @@ Page({
   },
 
   // 选择图片
-  onChooseImage() {
+  async onChooseImage() {
     wx.chooseMedia({
       count: 3,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      success: (res) => {
-        const images = res.tempFiles.map((file) => file.tempFilePath);
+      success: async (res) => {
+        const tempFilePaths = res.tempFiles.map((file) => file.tempFilePath);
+        wx.showLoading({ title: '上传中...' });
+        try {
+          const fileIDs = await uploadImagesToCloud(tempFilePaths);
 
-        const userMessage: IMessage = {
-          id: `user_${Date.now()}`,
-          role: 'user',
-          content: '参考图片',
-          images,
-          timestamp: Date.now(),
-          userId: getCurrentUserId(),
-        };
-
-        const { messages } = this.data;
-        this.setData({
-          messages: [...messages, userMessage],
-          scrollToMessage: `msg-${userMessage.id}`,
-        });
-
-        // TODO: 后续可将图片上传到云存储后发给 Dify
-        // 暂时展示图片回复提示
-        setTimeout(() => {
-          const aiMessage: IMessage = {
-            id: `ai_${Date.now()}`,
-            role: 'ai',
-            content: '收到你的参考图片了！我会根据这些图片帮你构建角色形象。你想要这个角色有什么特别的特征吗？',
+          const userMessage: IMessage = {
+            id: `user_${Date.now()}`,
+            role: 'user',
+            content: '参考图片',
+            images: fileIDs,
             timestamp: Date.now(),
+            userId: getCurrentUserId(),
+          };
+
+          const { messages, difyConversationId, characterId } = this.data;
+          // 同步添加用户消息和 AI 占位消息，避免 setData race
+          const requestId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+          const aiPlaceholder: IMessage = {
+            id: `ai_${requestId}`,
+            role: 'ai',
+            content: '',
+            timestamp: Date.now(),
+            animate: true,
+            pending: true,
+            pendingText: '正在分析图片',
+            requestId,
             userId: 'ai',
           };
+
+          const combined = [...messages, userMessage, aiPlaceholder];
           this.setData({
-            messages: [...this.data.messages, aiMessage],
-            scrollToMessage: `msg-${aiMessage.id}`,
+            messages: combined,
+            scrollToMessage: `msg-${aiPlaceholder.id}`,
           });
-        }, 1500);
+
+          // 立刻保存到本地缓存，防止后台定时同步用云端数据覆盖本地占位消息
+          try {
+            this.saveConversation();
+          } catch (e) {
+            console.warn('保存本地对话失败:', e);
+          }
+          // 启动后台定时同步（确保云端写入后能尽快拉取到本地）
+          this.startPendingSyncIfNeeded();
+
+          // 调用 chatWithDify，传递 fileIDs
+          const response = await chatWithDify('图片参考', difyConversationId, characterId, requestId, fileIDs).catch((err: any) => {
+            console.error('chatWithDify 图片异常:', err);
+            return { success: false, message: '', error: err?.message || String(err) };
+          });
+
+          const msgIndex = this.findMessageIndexById(aiPlaceholder.id);
+          if (response.success && response.message) {
+            if (msgIndex >= 0) {
+              this.setData({ [`messages[${msgIndex}].pending`]: false });
+              this.streamDisplayMessage(response.message, msgIndex);
+            }
+          } else {
+            if (msgIndex >= 0) {
+              this.setData({
+                [`messages[${msgIndex}].pending`]: false,
+                [`messages[${msgIndex}].content`]: 'AI服务处理图片失败',
+                [`messages[${msgIndex}].transient`]: true,
+              });
+            }
+          }
+        } catch (err) {
+          wx.hideLoading();
+          wx.showToast({ title: '图片上传失败', icon: 'none' });
+        } finally {
+          wx.hideLoading();
+        }
       },
     });
   },

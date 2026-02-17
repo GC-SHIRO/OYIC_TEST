@@ -199,10 +199,18 @@ page {
   color: #f9fafb;
 }
 
+/* 用户消息内容靠右对齐 */
+.message-user .message-content {
+  align-items: flex-end;
+}
+
 .message-user .message-bubble {
   background: linear-gradient(135deg, #4b5563 0%, #1f2937 100%);
   color: #f9fafb;
   border-bottom-right-radius: 8rpx;
+  /* 用户消息气泡宽度自适应文字内容，避免与图片对齐导致空白 */
+  width: fit-content;
+  max-width: 100%;
 }
 
 /* 图片消息 */

@@ -46,6 +46,7 @@ export async function chatWithDify(
   conversationId?: string,
   cardId?: string,
   requestId?: string,
+  images?: string[], // 新增参数，图片 fileID 列表
 ): Promise<IAgentResponse> {
   try {
     const res = await (wx.cloud.callFunction as any)({
@@ -56,6 +57,7 @@ export async function chatWithDify(
         conversationId: conversationId || '',
         cardId: cardId || '',
         requestId: requestId || '',
+        files: images && images.length > 0 ? images : undefined, // 传递 fileID
       },
       timeout: 120000, // 客户端等待 120 秒
     });
