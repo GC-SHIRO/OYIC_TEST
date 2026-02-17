@@ -111,6 +111,12 @@ Page({
     this.setData({ inputValue: e.detail.value });
   },
 
+  // 输入框行数变化（自动增高时触发）
+  onLineChange() {
+    // 输入框高度变化时，确保消息列表滚动到底部，避免被遮挡
+    this.scrollToBottom();
+  },
+
   // 键盘高度变化（核心：防止闪烁）
   onKeyboardChange(e: any) {
     const height = e.detail.height || 0;

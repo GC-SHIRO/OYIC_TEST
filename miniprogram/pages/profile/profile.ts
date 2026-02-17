@@ -45,8 +45,16 @@ Page({
   },
 
   onShow() {
-    // 每次进入都从云端拉取最新
+    // 每次进入先显示本地缓存的头像（快速响应），再从云端拉取最新
     if (this.data.isLoggedIn && getCurrentUserId()) {
+      // 先用本地缓存更新头像，确保快速显示
+      const localUserInfo = getLocalUserInfo();
+      if (localUserInfo && localUserInfo.avatar) {
+        this.setData({
+          userInfo: { ...this.data.userInfo, avatar: localUserInfo.avatar }
+        });
+      }
+      // 后台异步拉取云端最新数据
       this.loadWorksFromCloud();
       this.loadBalanceOverview();
       this.loadProfileFromCloud();

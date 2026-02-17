@@ -7,8 +7,6 @@
     </view>
     <text class="navbar-title">创建角色</text>
   </view>
-  <!-- 导航栏占位 -->
-  <view class="navbar-placeholder"></view>
   
   <!-- 聊天消息区域 -->
   <scroll-view 
@@ -84,15 +82,16 @@
     
     <!-- 输入框 -->
     <view class="input-wrapper">
-      <textarea 
-        class="chat-input" 
-        placeholder="输入你的想法..." 
+      <textarea
+        class="chat-input"
+        placeholder="输入你的想法..."
         value="{{inputValue}}"
         bindinput="onInput"
         bindconfirm="onSend"
         bindfocus="onInputFocus"
         bindblur="onInputBlur"
         bindkeyboardheightchange="onKeyboardChange"
+        bindlinechange="onLineChange"
         confirm-type="send"
         adjust-position="{{false}}"
         fixed
@@ -101,6 +100,7 @@
         cursor-spacing="16"
         hold-keyboard
         disable-default-padding
+        auto-height
       />
     </view>
     

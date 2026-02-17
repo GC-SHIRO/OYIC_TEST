@@ -15,11 +15,5 @@
         color="{{selected === index ? selectedColor : color}}" 
       />
     </view>
-    <text 
-      class="tab-text" 
-      style="color: {{selected === index ? selectedColor : color}}"
-    >
-      {{item.text}}
-    </text>
   </view>
 </view>

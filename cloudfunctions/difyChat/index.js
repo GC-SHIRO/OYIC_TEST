@@ -1,6 +1,5 @@
-// 云函数 - Dify/Coze 对话代理
-// 将 Dify/Coze API Key 安全地保存在云端，前端通过此云函数间接调用
-// 支持两种模式：通过配置切换
+// 云函数 - Dify 对话代理
+// 将 Dify API Key 安全地保存在云端，前端通过此云函数间接调用
 let moduleInitError = null
 let cloud
 let https
@@ -33,15 +32,9 @@ try {
 }
 
 // ===== 配置 =====
-const CHAT_PROVIDER = 'dify' // 'dify' 或 'coze'
 // Dify 配置
 const DIFY_API_KEY = 'app-AgVIxZ1CKsps5s5JaiJWs14x'
 const DIFY_BASE_URL = 'https://api.dify.ai/v1'
-
-// Coze 配置（请替换为你的实际值）
-const COZE_API_KEY = 'pat_eLUxv2UA7gejbn56mcdmxUf5GTlIw30PYLXJZThljUtubWbm44O7uNgPXq9vbAno' // 你的 Coze PAT
-const COZE_BOT_ID = '7607007264930988051' // 你的 Coze 智能体 ID
-const COZE_BASE_URL = 'https://api.coze.cn'
 
 const WELCOME_CONTENT = '你好！我是你的角色创作助手\n\n告诉我你的想法吧！可以是角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~'
 
@@ -125,28 +118,17 @@ async function sendChatMessage(event, openId) {
       files = []
     }
     let result
-    let provider = CHAT_PROVIDER
 
-    if (provider === 'coze') {
-      // Coze API 调用
-      console.log('Coze 请求参数:', { query, conversationId, userId: openId })
-      result = await callCozeChat({
-        query,
-        conversationId,
-        userId: openId,
-      })
-      console.log('Coze 返回结果:', result)
-    } else {
-      // Dify API 调用（默认）
-      const requestBody = {
-        inputs: {},
-        query: query,
-        response_mode: 'streaming',
-        conversation_id: conversationId || '',
-        user: openId,
-      }
+    // Dify API 调用
+    const requestBody = {
+      inputs: {},
+      query: query,
+      response_mode: 'streaming',
+      conversation_id: conversationId || '',
+      user: openId,
+    }
 
-      if (files && files.length > 0) {
+    if (files && files.length > 0) {
         // 尝试将小程序云存储 fileID 转换为临时可访问 URL，Dify 需要可被外部访问的文件地址
         try {
           if (typeof cloud.getTempFileURL === 'function') {
@@ -229,7 +211,6 @@ async function sendChatMessage(event, openId) {
         console.error('调用 Dify httpPostSSE 失败:', e && e.message ? e.message : e)
         result = { error: e && e.message ? e.message : String(e) }
       }
-    }
 
     if (result.error) {
       return { code: -1, message: result.error, error: result.error }
@@ -589,258 +570,6 @@ function buildWelcomeMessage() {
 }
 
 /**
- * 调用 Coze API 对话
- * stream: false 时返回普通 JSON，stream: true 时返回 SSE
- */
-async function callCozeChat({ query, conversationId, userId }) {
-  const url = `${COZE_BASE_URL}/v3/chat`
-  const body = {
-    bot_id: COZE_BOT_ID,
-    user_id: userId,
-    // 使用 additional_messages 传递用户输入，而不是 query
-    additional_messages: [
-      {
-        role: 'user',
-        content: query,
-        content_type: 'text',
-      }
-    ],
-    stream: true, // 改用流式响应，可以直接获取回复内容
-    auto_save_history: true,
-  }
-
-  if (conversationId) {
-    body.conversation_id = conversationId
-  }
-
-  console.log('Coze 请求体:', JSON.stringify(body))
-
-  const headers = {
-    'Authorization': `Bearer ${COZE_API_KEY}`,
-    'Content-Type': 'application/json',
-  }
-
-  // stream: true 时返回 SSE 格式，需要用 SSE 解析器
-  return await cozeHttpPostSSE(url, body, headers)
-}
-
-/**
- * 发起 Coze HTTPS POST 请求并解析普通 JSON 响应（非 SSE）
- * Coze 非流式响应格式:
- * {
- *   "code": 0,
- *   "msg": "success",
- *   "data": {
- *     "conversation_id": "...",
- *     "message_id": "...",
- *     "role": "assistant",
- *     "content": "...",
- *     "type": "text"
- *   }
- * }
- */
-function cozeHttpPostJSON(url, body, headers) {
-  return new Promise((resolve) => {
-    const urlObj = new URL(url)
-    const postData = JSON.stringify(body)
-
-    const options = {
-      hostname: urlObj.hostname,
-      port: urlObj.port || 443,
-      path: urlObj.pathname + urlObj.search,
-      method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Length': Buffer.byteLength(postData),
-      },
-      timeout: 120000,
-    }
-
-    const req = https.request(options, (res) => {
-      let data = ''
-
-      res.on('data', (chunk) => {
-        data += chunk.toString()
-      })
-
-      res.on('end', () => {
-        if (res.statusCode < 200 || res.statusCode >= 300) {
-          resolve({ error: `HTTP ${res.statusCode}: ${data.substring(0, 300)}` })
-          return
-        }
-
-        try {
-          const json = JSON.parse(data)
-
-          // 检查 API 返回的错误码
-          if (json.code !== 0) {
-            resolve({ error: json.msg || json.message || `API 错误: ${json.code}` })
-            return
-          }
-
-          const msgData = json.data || {}
-          const answer = msgData.content || ''
-          const conversationId = msgData.conversation_id || ''
-          const messageId = msgData.message_id || ''
-          let tokens = 0
-
-          // 尝试从 usage 获取 token 数
-          if (msgData.usage) {
-            tokens = pickTokensCoze(msgData.usage)
-          }
-
-          resolve({ answer, conversationId, messageId, tokens })
-        } catch (e) {
-          resolve({ error: `响应解析失败: ${e.message}` })
-        }
-      })
-    })
-
-    req.on('error', (err) => {
-      resolve({ error: `请求失败: ${err.message}` })
-    })
-
-    req.on('timeout', () => {
-      req.destroy()
-      resolve({ error: '请求超时' })
-    })
-
-    req.write(postData)
-    req.end()
-  })
-}
-
-/**
- * 发起 Coze HTTPS POST 请求并解析 SSE 流式响应
- */
-function cozeHttpPostSSE(url, body, headers) {
-  return new Promise((resolve) => {
-    const urlObj = new URL(url)
-    const postData = JSON.stringify(body)
-
-    const options = {
-      hostname: urlObj.hostname,
-      port: urlObj.port || 443,
-      path: urlObj.pathname + urlObj.search,
-      method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Length': Buffer.byteLength(postData),
-        'Accept': 'text/event-stream',
-      },
-      timeout: 120000,
-    }
-
-    let fullAnswer = ''
-    let conversationId = ''
-    let messageId = ''
-    let tokens = 0
-    let buffer = ''
-
-    const req = https.request(options, (res) => {
-      if (res.statusCode < 200 || res.statusCode >= 300) {
-        let errData = ''
-        res.on('data', (chunk) => { errData += chunk })
-        res.on('end', () => {
-          resolve({ error: `HTTP ${res.statusCode}: ${errData.substring(0, 300)}` })
-        })
-        return
-      }
-
-      res.on('data', (chunk) => {
-        buffer += chunk.toString()
-
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed || !trimmed.startsWith('data:')) continue
-
-          const jsonStr = trimmed.slice(5).trim()
-          if (!jsonStr) continue
-
-          try {
-            const evt = JSON.parse(jsonStr)
-            const eventType = evt.type || evt.event || ''
-            // 打印完整事件以便调试
-            console.log('Coze SSE 原始事件:', JSON.stringify(evt).substring(0, 200))
-
-            if (eventType === 'answer') {
-              // Coze 返回的 answer 内容
-              fullAnswer += (evt.content || '')
-              if (evt.id) messageId = evt.id
-              if (evt.conversation_id) conversationId = evt.conversation_id
-            } else if (eventType === 'verbose') {
-              // verbose 事件可能包含完成信息
-              if (evt.content && typeof evt.content === 'string') {
-                try {
-                  const verboseData = JSON.parse(evt.content)
-                  if (verboseData.msg_type === 'generate_answer_finish') {
-                    // 可能表示生成完成
-                  }
-                } catch (e) {
-                  // 忽略解析失败
-                }
-              }
-            } else if (evt.status === 'complete') {
-              // 对话完成
-              if (evt.conversation_id) conversationId = evt.conversation_id
-              if (evt.id) messageId = evt.id
-              if (evt.usage) {
-                tokens = pickTokensCoze(evt.usage)
-              }
-            } else if (evt.last_error && evt.last_error.code !== 0) {
-              resolve({ error: evt.last_error.msg || 'API 错误' })
-              req.destroy()
-              return
-            }
-          } catch (e) {
-            // 忽略解析失败的行
-          }
-        }
-      })
-
-      res.on('end', () => {
-        if (buffer.trim().startsWith('data:')) {
-          try {
-            const evt = JSON.parse(buffer.trim().slice(5).trim())
-            const eventType = evt.type || evt.event || ''
-            if (eventType === 'answer') {
-              fullAnswer += (evt.content || '')
-            }
-            if (evt.conversation_id) conversationId = evt.conversation_id
-            if (evt.id) messageId = evt.id
-          } catch (e) { /* ignore */ }
-        }
-
-        resolve({ answer: fullAnswer, conversationId, messageId, tokens })
-      })
-    })
-
-    req.on('error', (err) => {
-      resolve({ error: `请求失败: ${err.message}` })
-    })
-
-    req.on('timeout', () => {
-      req.destroy()
-      resolve({ error: '请求超时' })
-    })
-
-    req.write(postData)
-    req.end()
-  })
-}
-
-/**
- * 从 Coze 元数据中提取 token 数
- */
-function pickTokensCoze(usage) {
-  if (!usage) return 0
-  return usage.token_count || usage.total_tokens || usage.total || 0
-}
-
-/**
  * 发起 HTTPS POST 请求并解析 SSE 流式响应
  * Dify streaming 返回 text/event-stream，每行格式为:
  *   data: {"event":"message","answer":"...","conversation_id":"..."}
@@ -1039,12 +768,9 @@ async function applyBalanceChanges(openId, changes) {
  */
 async function testConnectivity() {
   const startTime = Date.now()
-  const provider = CHAT_PROVIDER
 
-  // 根据配置选择测试目标
-  const testConfig = provider === 'coze'
-    ? { host: 'api.coze.cn', path: '/v3/chat', token: COZE_API_KEY }
-    : { host: 'api.dify.ai', path: '/v1/parameters', token: DIFY_API_KEY }
+  // Dify API 测试目标
+  const testConfig = { host: 'api.dify.ai', path: '/v1/parameters', token: DIFY_API_KEY }
 
   // 1. DNS 解析测试
   const dns = require('dns')
@@ -1070,7 +796,7 @@ async function testConnectivity() {
     const result = await new Promise((resolve) => {
       const options = {
         hostname: testConfig.host,
-        path: testConfig.path + (provider === 'coze' ? '' : '?user=test'),
+        path: testConfig.path + '?user=test',
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${testConfig.token}`,
@@ -1098,18 +824,17 @@ async function testConnectivity() {
   }
 
   const elapsed = Date.now() - startTime
-  const providerName = provider === 'coze' ? 'Coze' : 'Dify'
 
   return {
     code: 0,
     message: '连通性测试完成',
     data: {
-      provider: providerName,
+      provider: 'Dify',
       dns: { ok: dnsOk, ip: dnsIp },
       https: { ok: httpsOk, detail: httpsMsg },
       elapsed: `${elapsed}ms`,
       conclusion: dnsOk && httpsOk
-        ? `✅ 云函数可以访问 ${providerName} API`
+        ? `✅ 云函数可以访问 Dify API`
         : !dnsOk
           ? `❌ DNS解析失败，${testConfig.host} 无法解析`
           : '❌ DNS正常但HTTPS连接失败，可能是网络不通或被防火墙拦截'
