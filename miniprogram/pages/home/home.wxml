@@ -1,81 +1,133 @@
-<!-- 首页 - 角色卡中心 -->
+<!-- 首页 - 多功能主页 -->
 <view class="page-container {{isDeleteMode ? 'delete-mode' : ''}} {{isExitAnimating ? 'delete-exit' : ''}}">
   <!-- 顶部标题 -->
   <view class="navbar">
-    <text class="navbar-title">我的角色</text>
+    <text class="navbar-title">首页</text>
   </view>
   
-  <!-- 角色卡片横向滚动区域 -->
-  <view class="cards-container">
-    <scroll-view 
-      class="cards-scroll" 
-      scroll-x 
-      enable-flex
-      enhanced 
-      show-scrollbar="{{false}}"
-      scroll-left="{{scrollLeft}}"
-    >
-      <!-- 新建角色卡片 -->
-      <view class="character-card card-new" bindtap="onCreateCharacter">
-        <view class="new-icon">
-          <t-icon name="add" size="80px" color="#334155" />
+  <!-- 页面主体（上下两部分） -->
+  <scroll-view class="main-scroll" scroll-y enable-flex enhanced show-scrollbar="{{false}}">
+    <!-- ============ 上半部分：角色卡区 ============ -->
+    <view class="section-characters">
+      <view class="section-header">
+        <text class="section-title">我的角色</text>
+        <view wx:if="{{loading}}" class="loading-hint">
+          <t-loading size="16px" />
+          <text style="margin-left: 8rpx; font-size: 24rpx; color: #6b7280;">同步中...</text>
         </view>
       </view>
-      
-      <!-- 未完成的角色卡片 -->
-      <view 
-        class="character-card card-incomplete" 
-        wx:for="{{incompleteCharacters}}" 
-        wx:key="id"
-        bindtap="onCardTap"
-        bindlongpress="onCardLongPress"
-        data-id="{{item.id}}"
-        data-status="incomplete"
-      >
-        <view wx:if="{{isDeleteMode}}" class="delete-btn" bindtap="onDeleteTap" data-id="{{item.id}}">
-          <text class="delete-icon">×</text>
-        </view>
-        <image 
-          src="{{item.avatar}}" 
-          class="card-image" 
-          mode="aspectFill"
-        />
-        <view class="card-info">
-          <view class="card-name">{{item.name}}</view>
-        <view class="card-desc">{{item.introduction}}</view>
-        </view>
-        <view class="card-blur-overlay">
-          <view class="incomplete-label">未完成</view>
-        </view>
-        
+
+      <view class="cards-container">
+        <scroll-view 
+          class="cards-scroll" 
+          scroll-x 
+          enable-flex
+          enhanced 
+          show-scrollbar="{{false}}"
+          scroll-left="{{scrollLeft}}"
+        >
+          <!-- 新建角色卡片 -->
+          <view class="character-card card-new" bindtap="onCreateCharacter">
+            <view class="new-icon">
+              <t-icon name="add" size="80px" color="#334155" />
+            </view>
+          </view>
+          
+          <!-- 未完成的角色卡片 -->
+          <view 
+            class="character-card card-incomplete" 
+            wx:for="{{incompleteCharacters}}" 
+            wx:key="id"
+            bindtap="onCardTap"
+            bindlongpress="onCardLongPress"
+            data-id="{{item.id}}"
+            data-status="incomplete"
+          >
+            <view wx:if="{{isDeleteMode}}" class="delete-btn" bindtap="onDeleteTap" data-id="{{item.id}}">
+              <text class="delete-icon">×</text>
+            </view>
+            <image 
+              src="{{item.avatar}}" 
+              class="card-image" 
+              mode="aspectFill"
+            />
+            <view class="card-info">
+              <view class="card-name">{{item.name}}</view>
+              <view class="card-desc">{{item.introduction}}</view>
+            </view>
+            <view class="card-blur-overlay">
+              <view class="incomplete-label">未完成</view>
+            </view>
+          </view>
+          
+          <!-- 已完成的角色卡片 -->
+          <view 
+            class="character-card card-completed" 
+            wx:for="{{completedCharacters}}" 
+            wx:key="id"
+            bindtap="onCardTap"
+            bindlongpress="onCardLongPress"
+            data-id="{{item.id}}"
+            data-status="completed"
+          >
+            <view wx:if="{{isDeleteMode}}" class="delete-btn" bindtap="onDeleteTap" data-id="{{item.id}}">
+              <text class="delete-icon">×</text>
+            </view>
+            <image 
+              src="{{item.avatar}}" 
+              class="card-image" 
+              mode="aspectFill"
+            />
+            <view class="card-info">
+              <view class="card-name">{{item.name}}</view>
+              <view class="card-desc">{{item.introduction}}</view>
+              <t-tag class="card-tag" variant="light" theme="primary">已完成</t-tag>
+            </view>
+          </view>
+        </scroll-view>
       </view>
-      
-      <!-- 已完成的角色卡片 -->
-      <view 
-        class="character-card card-completed" 
-        wx:for="{{completedCharacters}}" 
-        wx:key="id"
-        bindtap="onCardTap"
-        bindlongpress="onCardLongPress"
-        data-id="{{item.id}}"
-        data-status="completed"
-      >
-        <view wx:if="{{isDeleteMode}}" class="delete-btn" bindtap="onDeleteTap" data-id="{{item.id}}">
-          <text class="delete-icon">×</text>
-        </view>
-        <image 
-          src="{{item.avatar}}" 
-          class="card-image" 
-          mode="aspectFill"
-        />
-        <view class="card-info">
-          <view class="card-name">{{item.name}}</view>
-          <view class="card-desc">{{item.introduction}}</view>
-          <t-tag class="card-tag" variant="light" theme="primary">已完成</t-tag>
+    </view>
+
+    <!-- ============ 下半部分：活动/公告/广告区 ============ -->
+    <view class="section-feed">
+      <view class="section-header">
+        <text class="section-title">最新资讯</text>
+        <view wx:if="{{feedLoading}}" class="loading-hint">
+          <t-loading size="16px" />
         </view>
       </view>
-    </scroll-view>
-  </view>
+
+      <view class="feed-list">
+        <view 
+          class="feed-item {{item.type}}"
+          wx:for="{{feedItems}}"
+          wx:key="id"
+          bindtap="onFeedItemTap"
+          data-actionUrl="{{item.actionUrl}}"
+        >
+          <view class="feed-badge" style="background-color: {{item.tagColor || '#4ECDC4'}}">
+            {{item.badgeText}}
+          </view>
+          <view class="feed-content">
+            <view class="feed-title">{{item.title}}</view>
+            <view class="feed-desc">{{item.description}}</view>
+          </view>
+          <view class="feed-arrow">
+            <t-icon name="chevron-right" size="20px" color="#cbd5e1" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 无内容提示 -->
+      <view wx:if="{{feedItems.length === 0 && !feedLoading}}" class="empty-state">
+        <view class="empty-icon">📢</view>
+        <text class="empty-text">暂无资讯</text>
+      </view>
+    </view>
+
+    <!-- 底部安全距离 -->
+    <view style="height: 40rpx;"></view>
+  </scroll-view>
 
   <view wx:if="{{isDeleteMode}}" class="exit-edit-fab" bindtap="onExitDeleteMode">
     退出编辑

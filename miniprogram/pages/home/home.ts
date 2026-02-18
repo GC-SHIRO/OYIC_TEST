@@ -1,4 +1,4 @@
-// 首页 - 角色卡中心
+// 首页 - 多功能主页（上：角色卡，下：活动/公告/广告）
 import type { ICharacterListItem, ICharacterCard } from '../../types/character';
 import {
   fetchCharactersFromCloud,
@@ -10,12 +10,26 @@ import {
 } from '../../services/storage';
 import { toListItem } from '../../types/character';
 
+// 活动/公告/广告数据结构
+interface IFeedItem {
+  id: string;
+  type: 'activity' | 'announcement' | 'advertisement';
+  title: string;
+  description: string;
+  image?: string;
+  badgeText?: string;
+  tagColor?: string;
+  actionUrl?: string;
+}
+
 Page({
   data: {
     scrollLeft: 0,
     completedCharacters: [] as ICharacterListItem[],
     incompleteCharacters: [] as ICharacterListItem[],
+    feedItems: [] as IFeedItem[],
     loading: false,
+    feedLoading: false,
     isDeleteMode: false,
     isExitAnimating: false,
   },
@@ -34,6 +48,9 @@ Page({
       // 未登录清空列表
       this.setData({ completedCharacters: [], incompleteCharacters: [] });
     }
+    
+    // 加载活动/公告/广告
+    this.loadFeedItems();
 
     // 更新自定义 tabbar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
@@ -162,5 +179,63 @@ Page({
     const completed = this.data.completedCharacters.filter(item => item.id !== id);
     const incomplete = this.data.incompleteCharacters.filter(item => item.id !== id);
     this.setData({ completedCharacters: completed, incompleteCharacters: incomplete });
+  },
+
+  /** 加载活动/公告/广告 */
+  async loadFeedItems() {
+    this.setData({ feedLoading: true });
+    try {
+      // TODO: 从云端服务获取活动/公告/广告数据
+      // const items = await wx.cloud.callFunction({ name: 'feed', data: { action: 'list' } });
+      
+      // 现在用本地 mock 数据示例
+      const mockFeedItems: IFeedItem[] = [
+        {
+          id: '1',
+          type: 'activity',
+          title: '春节角色卡创意大赛',
+          description: '分享你的角色卡，赢取限量奖励！',
+          badgeText: '活动',
+          tagColor: '#FF6B6B',
+        },
+        {
+          id: '2',
+          type: 'announcement',
+          title: '系统更新通知',
+          description: '新增角色互动功能，让角色更生动',
+          badgeText: '公告',
+          tagColor: '#4ECDC4',
+        },
+        {
+          id: '3',
+          type: 'advertisement',
+          title: '高级订阅限时优惠',
+          description: '享受更多角色卡槽位和高级功能',
+          badgeText: '推荐',
+          tagColor: '#FFD93D',
+          actionUrl: '/pages/payment/payment',
+        },
+      ];
+      
+      this.setData({ feedItems: mockFeedItems });
+    } catch (err) {
+      console.warn('加载 Feed 失败:', err);
+      this.setData({ feedItems: [] });
+    } finally {
+      this.setData({ feedLoading: false });
+    }
+  },
+
+  /** 点击 Feed 项 */
+  onFeedItemTap(e: WechatMiniprogram.TouchEvent) {
+    const { actionurl } = e.currentTarget.dataset;
+    if (!actionurl) return;
+    
+    // 根据 URL 类型判断是否用 tab 跳转
+    if (actionurl.includes('/pages/payment/')) {
+      wx.navigateTo({ url: actionurl });
+    } else {
+      wx.navigateTo({ url: actionurl });
+    }
   },
 });
