@@ -1,5 +1,5 @@
 <!-- 预览角色卡页面 -->
-<view class="page-container">
+<view class="page-container" capture-bind:touchstart="handleHideToast">
   <!-- 顶部导航 -->
   <view class="navbar">
     <view class="nav-back" bindtap="onBack">
@@ -42,27 +42,27 @@
             <view class="section-content">
               <view class="info-item">
                 <text class="info-label">姓名：</text>
-                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input input-short" value="{{character.name}}" data-path="name" bindinput="onFieldInput" placeholder="请输入姓名" /></block>
+                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input input-short {{focusedInputPath === 'name' ? 'input-focused' : ''}}" value="{{character.name}}" data-path="name" bindinput="onFieldInput" bindfocus="onInputFocus" bindblur="onInputBlur" placeholder="请输入姓名" /></block>
                 <text wx:else class="info-value">{{character.name}}</text>
               </view>
               <view class="info-item">
                 <text class="info-label">性别：</text>
-                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input input-short" value="{{character.gender}}" data-path="gender" bindinput="onFieldInput" placeholder="请输入性别" /></block>
+                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input input-short {{focusedInputPath === 'gender' ? 'input-focused' : ''}}" value="{{character.gender}}" data-path="gender" bindinput="onFieldInput" bindfocus="onInputFocus" bindblur="onInputBlur" placeholder="请输入性别" /></block>
                 <text wx:else class="info-value">{{character.gender}}</text>
               </view>
               <view class="info-item">
                 <text class="info-label">星座：</text>
-                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input input-short" value="{{character.constellation}}" data-path="constellation" bindinput="onFieldInput" placeholder="请输入星座" /></block>
+                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input input-short {{focusedInputPath === 'constellation' ? 'input-focused' : ''}}" value="{{character.constellation}}" data-path="constellation" bindinput="onFieldInput" bindfocus="onInputFocus" bindblur="onInputBlur" placeholder="请输入星座" /></block>
                 <text wx:else class="info-value">{{character.constellation}}</text>
               </view>
               <view class="info-item">
                 <text class="info-label">生日：</text>
-                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input input-short" value="{{character.birthday}}" data-path="birthday" bindinput="onFieldInput" placeholder="请输入生日" /></block>
+                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input input-short {{focusedInputPath === 'birthday' ? 'input-focused' : ''}}" value="{{character.birthday}}" data-path="birthday" bindinput="onFieldInput" bindfocus="onInputFocus" bindblur="onInputBlur" placeholder="请输入生日" /></block>
                 <text wx:else class="info-value">{{character.birthday}}</text>
               </view>
               <view class="info-item">
                 <text class="info-label">物种：</text>
-                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input input-short" value="{{character.species}}" data-path="species" bindinput="onFieldInput" placeholder="请输入物种" /></block>
+                <block wx:if="{{editingSection === 'basicInfo'}}"><input class="info-input input-short {{focusedInputPath === 'species' ? 'input-focused' : ''}}" value="{{character.species}}" data-path="species" bindinput="onFieldInput" bindfocus="onInputFocus" bindblur="onInputBlur" placeholder="请输入物种" /></block>
                 <text wx:else class="info-value">{{character.species}}</text>
               </view>
             </view>
@@ -78,8 +78,8 @@
             </view>
             <view class="personality-tags">
               <block wx:if="{{editingSection === 'personalityTags'}}">
-                <view wx:for="{{character.personalityTags}}" wx:key="*this" class="personality-tag-edit">
-                  <input class="tag-input input-tag" value="{{item}}" data-path="personalityTags" data-index="{{index}}" bindinput="onFieldInput" placeholder="标签" />
+                <view wx:for="{{character.personalityTags}}" wx:key="*this" class="input-wrapper {{focusedTagIndex === index ? 'input-wrapper--focused' : ''}}">
+                  <input class="tag-input" value="{{item}}" data-path="personalityTags" data-index="{{index}}" bindinput="onFieldInput" bindfocus="onTagFocus" bindblur="onTagBlur" placeholder="标签" />
                 </view>
                 <view class="personality-tag-add" bindtap="onAddPersonalityTag">+</view>
               </block>
@@ -103,7 +103,7 @@
                 <view class="attr-color-dot hair-dot"></view>
                 <text class="attr-label">发色</text>
                 <block wx:if="{{editingSection === 'appearance'}}">
-                  <input class="attr-input input-short" value="{{character.appearance.hairColor}}" data-path="appearance.hairColor" bindinput="onFieldInput" placeholder="发色" />
+                  <input class="attr-input input-short {{focusedInputPath === 'appearance.hairColor' ? 'input-focused' : ''}}" value="{{character.appearance.hairColor}}" data-path="appearance.hairColor" bindinput="onFieldInput" bindfocus="onInputFocus" bindblur="onInputBlur" placeholder="发色" />
                   <view class="attr-lock-btn attr-lock-fixed"><text class="attr-lock-icon">🔒</text></view>
                 </block>
                 <text wx:else class="attr-value">{{character.appearance.hairColor}}</text>
@@ -113,7 +113,7 @@
                 <view class="attr-color-dot hair-dot"></view>
                 <text class="attr-label">瞳色</text>
                 <block wx:if="{{editingSection === 'appearance'}}">
-                  <input class="attr-input input-short" value="{{character.appearance.eyeColor}}" data-path="appearance.eyeColor" bindinput="onFieldInput" placeholder="瞳色" />
+                  <input class="attr-input input-short {{focusedInputPath === 'appearance.eyeColor' ? 'input-focused' : ''}}" value="{{character.appearance.eyeColor}}" data-path="appearance.eyeColor" bindinput="onFieldInput" bindfocus="onInputFocus" bindblur="onInputBlur" placeholder="瞳色" />
                   <view class="attr-lock-btn attr-lock-fixed"><text class="attr-lock-icon">🔒</text></view>
                 </block>
                 <text wx:else class="attr-value">{{character.appearance.eyeColor}}</text>
@@ -129,9 +129,9 @@
                       <text class="attr-label-text">{{attr.label || '属性名'}}</text>
                     </block>
                     <block wx:else>
-                      <input class="attr-label-input input-short" value="{{attr.label}}" data-path="appearance.customAttrs" data-index="{{attrIdx}}" data-subfield="label" bindinput="onFieldInput" placeholder="属性名" />
+                      <input class="attr-label-input input-short {{focusedInputPath === 'appearance.customAttrs-' + attrIdx + '-label' ? 'input-focused' : ''}}" value="{{attr.label}}" data-path="appearance.customAttrs" data-index="{{attrIdx}}" data-subfield="label" bindinput="onFieldInput" bindfocus="onInputFocus" bindblur="onInputBlur" placeholder="属性名" />
                     </block>
-                    <input class="attr-input attr-value-input input-short" value="{{attr.value}}" data-path="appearance.customAttrs" data-index="{{attrIdx}}" data-subfield="value" bindinput="onFieldInput" placeholder="输入值" />
+                    <input class="attr-input attr-value-input input-short {{focusedInputPath === 'appearance.customAttrs-' + attrIdx + '-value' ? 'input-focused' : ''}}" value="{{attr.value}}" data-path="appearance.customAttrs" data-index="{{attrIdx}}" data-subfield="value" bindinput="onFieldInput" bindfocus="onInputFocus" bindblur="onInputBlur" placeholder="输入值" />
                     <view wx:if="{{!attr.locked}}" class="attr-delete-btn" bindtap="onDeleteAppearanceAttr" data-index="{{attrIdx}}">×</view>
                   </block>
                   <block wx:else>
@@ -225,7 +225,7 @@
               <view class="relationship-list">
                 <view wx:for="{{character.relationships}}" wx:key="character" class="relationship-item">
                   <block wx:if="{{editingSection === 'relationships'}}">
-                    <input class="rel-input input-short" value="{{item.character}}" data-path="relationships" data-index="{{index}}" data-subfield="character" bindinput="onFieldInput" placeholder="角色" />
+                    <input class="rel-input input-short {{focusedInputPath === 'relationships-' + index + '-character' ? 'input-focused' : ''}}" value="{{item.character}}" data-path="relationships" data-index="{{index}}" data-subfield="character" bindinput="onFieldInput" bindfocus="onInputFocus" bindblur="onInputBlur" placeholder="角色" />
                     <text class="rel-arrow">→</text>
                     <input class="rel-input flex-1 input-long" value="{{item.relation}}" data-path="relationships" data-index="{{index}}" data-subfield="relation" bindinput="onFieldInput" placeholder="关系" />
                   </block>
@@ -310,5 +310,9 @@
     >
       完成创建
     </t-button>
+  </view>
+
+  <view class="save-tip {{saveTipVisible ? 'save-tip--show' : ''}} {{readonly ? 'save-tip--readonly' : ''}}">
+    {{saveTipText}}
   </view>
 </view>

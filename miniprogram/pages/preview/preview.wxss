@@ -156,7 +156,31 @@
  * input-number: 数字输入（六维图分值）
  * input-tag: tag 输入（性格标签）
  */
-.input-short,
+.input-short {
+  border: none;
+  outline: none;
+  border-radius: 30rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  padding: 0 24rpx;
+  background-color: #f1f5f9;
+  box-shadow: inset 4rpx 8rpx 16rpx rgba(59, 130, 246, 0.18);
+  transition: 150ms ease-out;
+  font-size: 28rpx;
+  color: #4b5563;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.input-short:focus,
+.input-focused {
+  background-color: #ffffff;
+  transform: scale(1.02);
+  box-shadow: 0 16rpx 48rpx rgba(37, 99, 235, 0.35), 0 0 0 4rpx #3b82f6;
+  z-index: 10;
+  position: relative;
+}
+
 .input-long {
   font-size: 28rpx;
   color: #4b5563;
@@ -191,39 +215,43 @@
   border-radius: 12rpx;
 }
 
-.input-tag {
-  font-size: 26rpx;
-  color: #111827;
-  padding: 8rpx 16rpx;
-  background: #fff;
-  border: 2rpx solid #e5e7eb;
-  border-bottom: 3rpx solid #9ca3af;
-  border-radius: 20rpx;
-  min-width: 120rpx;
-}
-
-/* 编辑模式下的输入框：底部加深，便于区分。
- * TODO 深色模式：此处 border-bottom 需切换为浅色系（如 rgba(255,255,255,0.3)）
- */
+/* 编辑模式下的输入框：底部加深，便于区分 */
 .info-input,
 .attr-input {
   flex: 1;
-  font-size: 28rpx;
-  color: #4b5563;
-  padding: 8rpx 0;
   min-width: 0;
-  border-bottom: 3rpx solid #9ca3af;
+}
+
+/* From Uiverse.io by adamgiebl - tag 输入框 */
+.input-wrapper {
+  display: inline-block;
 }
 
 .tag-input {
+  background-color: #eee;
+  border: none;
+  padding: 0 28rpx;
+  height: 72rpx;
+  line-height: 72rpx;
   font-size: 26rpx;
-  color: #111827;
-  padding: 8rpx 16rpx;
-  background: #fff;
-  border: 2rpx solid #e5e7eb;
-  border-bottom: 3rpx solid #9ca3af;
-  border-radius: 20rpx;
-  min-width: 120rpx;
+  width: 13em;
+  border-radius: 30rpx;
+  color: #3b82f6;
+  box-shadow: 0 8rpx 0 #dfd9d9;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.input-wrapper--focused {
+  overflow: visible;
+  position: relative;
+  border-radius: 30rpx;
+}
+
+.input-wrapper--focused .tag-input {
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 0 0 4rpx rgba(59, 130, 246, 0.6), 0 8rpx 0 #dfd9d9;
 }
 
 .personality-tag-edit {
@@ -288,11 +316,7 @@
 }
 
 .rel-input {
-  font-size: 28rpx;
-  color: #111827;
-  padding: 8rpx 0;
   min-width: 100rpx;
-  border-bottom: 3rpx solid #9ca3af;
 }
 
 .rel-input.flex-1 {
@@ -440,10 +464,6 @@
 .attr-label-input {
   width: 140rpx;
   flex-shrink: 0;
-  font-size: 26rpx;
-  color: #4b5563;
-  padding: 6rpx 0;
-  border-bottom: 3rpx solid #9ca3af;
 }
 
 .attr-label-text {
@@ -653,4 +673,34 @@
 .action-bar .t-button--primary {
   background: linear-gradient(135deg, #9ca3af 0%, #4b5563 100%) !important;
   border: none !important;
+}
+
+.save-tip {
+  position: fixed;
+  left: 50%;
+  bottom: 176rpx;
+  transform: translateX(-50%) translateY(30rpx);
+  min-width: 280rpx;
+  max-width: calc(100vw - 64rpx);
+  padding: 16rpx 28rpx;
+  border-radius: 24rpx;
+  background: rgba(17, 24, 39, 0.88);
+  color: #ffffff;
+  font-size: 24rpx;
+  text-align: center;
+  box-sizing: border-box;
+  box-shadow: 0 10rpx 24rpx rgba(17, 24, 39, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 40;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.save-tip--show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.save-tip--readonly {
+  bottom: 72rpx;
 }

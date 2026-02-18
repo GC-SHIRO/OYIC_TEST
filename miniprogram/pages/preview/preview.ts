@@ -28,7 +28,16 @@ Page({
     character: {} as ICharacterInfo,
     /** 当前处于编辑状态的 section，空字符串表示未编辑 */
     editingSection: '' as EditSectionKey | '',
+    /** 底部轻提示（保存成功） */
+    saveTipVisible: false,
+    saveTipText: '',
+    /** 当前聚焦的 input，解决 CSS focus 不稳定问题 */
+    focusedInputPath: '',
+    /** 当前聚焦的 tag 输入框索引，-1 表示无 */
+    focusedTagIndex: -1,
   },
+
+  saveTipTimer: 0 as number,
 
   onLoad(options: { characterId?: string; readonly?: string }) {
     const characterId = options.characterId || '';
@@ -267,6 +276,17 @@ Page({
     this.setData({ character: c });
   },
 
+  /** tag 输入框聚焦：高亮对应 wrapper */
+  onTagFocus(e: WechatMiniprogram.FocusEvent) {
+    const index = (e.currentTarget.dataset as any).index as number;
+    this.setData({ focusedTagIndex: index });
+  },
+
+  /** tag 输入框失焦：清除高亮 */
+  onTagBlur() {
+    this.setData({ focusedTagIndex: -1 });
+  },
+
   /** 添加自定义外观属性 */
   onAddAppearanceAttr() {
     const c = JSON.parse(JSON.stringify(this.data.character));
@@ -333,6 +353,46 @@ Page({
       // 进入编辑模式
       this.setData({ editingSection: key });
     }
+  },
+
+  /** 点击屏幕隐藏底部轻提示 */
+  handleHideToast() {
+    this.hideSaveTip();
+  },
+
+  showSaveTip(text: string) {
+    if (this.saveTipTimer) {
+      clearTimeout(this.saveTipTimer);
+      this.saveTipTimer = 0;
+    }
+    this.setData({ saveTipVisible: true, saveTipText: text });
+    this.saveTipTimer = setTimeout(() => {
+      this.setData({ saveTipVisible: false });
+      this.saveTipTimer = 0;
+    }, 1800) as unknown as number;
+  },
+
+  hideSaveTip() {
+    if (!this.data.saveTipVisible) return;
+    if (this.saveTipTimer) {
+      clearTimeout(this.saveTipTimer);
+      this.saveTipTimer = 0;
+    }
+    this.setData({ saveTipVisible: false });
+  },
+
+  /** 聚焦输入框 */
+  onInputFocus(e: WechatMiniprogram.InputFocusEvent) {
+    const { path, index, subfield } = e.currentTarget.dataset;
+    let focusKey = path || '';
+    if (typeof index !== 'undefined') focusKey += `-${index}`;
+    if (subfield) focusKey += `-${subfield}`;
+    this.setData({ focusedInputPath: focusKey });
+  },
+
+  /** 失焦输入框 */
+  onInputBlur() {
+    this.setData({ focusedInputPath: '' });
   },
 
   /** 字段输入时更新本地 character */
@@ -405,11 +465,22 @@ Page({
         card.updatedAt = Date.now();
         saveCharacter(card);
         console.log('[preview] 上传成功', { characterId, character });
-        wx.showToast({ title: '已保存到云端', icon: 'success' });
+        this.showSaveTip('已保存到云端');
       } catch (error) {
         console.error('[preview] 上传失败', { characterId, error });
         wx.showToast({ title: '上传失败，请稍后重试', icon: 'none' });
       }
+    }
+  },
+
+  onHide() {
+    this.hideSaveTip();
+  },
+
+  onUnload() {
+    if (this.saveTipTimer) {
+      clearTimeout(this.saveTipTimer);
+      this.saveTipTimer = 0;
     }
   },
 
