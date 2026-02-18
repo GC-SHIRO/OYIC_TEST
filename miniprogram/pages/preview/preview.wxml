@@ -98,18 +98,51 @@
               <view class="section-edit-btn" bindtap="onToggleEdit" data-section="appearance">{{editingSection === 'appearance' ? '完成编辑' : '编辑'}}</view>
             </view>
             <view class="appearance-attrs">
+              <!-- 内置属性：发色 -->
               <view class="appearance-attr">
                 <view class="attr-color-dot hair-dot"></view>
                 <text class="attr-label">发色</text>
-                <block wx:if="{{editingSection === 'appearance'}}"><input class="attr-input input-short" value="{{character.appearance.hairColor}}" data-path="appearance.hairColor" bindinput="onFieldInput" placeholder="发色" /></block>
+                <block wx:if="{{editingSection === 'appearance'}}">
+                  <input class="attr-input input-short" value="{{character.appearance.hairColor}}" data-path="appearance.hairColor" bindinput="onFieldInput" placeholder="发色" />
+                  <view class="attr-lock-btn attr-lock-fixed"><text class="attr-lock-icon">🔒</text></view>
+                </block>
                 <text wx:else class="attr-value">{{character.appearance.hairColor}}</text>
               </view>
+              <!-- 内置属性：瞳色 -->
               <view class="appearance-attr">
                 <view class="attr-color-dot hair-dot"></view>
                 <text class="attr-label">瞳色</text>
-                <block wx:if="{{editingSection === 'appearance'}}"><input class="attr-input input-short" value="{{character.appearance.eyeColor}}" data-path="appearance.eyeColor" bindinput="onFieldInput" placeholder="瞳色" /></block>
+                <block wx:if="{{editingSection === 'appearance'}}">
+                  <input class="attr-input input-short" value="{{character.appearance.eyeColor}}" data-path="appearance.eyeColor" bindinput="onFieldInput" placeholder="瞳色" />
+                  <view class="attr-lock-btn attr-lock-fixed"><text class="attr-lock-icon">🔒</text></view>
+                </block>
                 <text wx:else class="attr-value">{{character.appearance.eyeColor}}</text>
               </view>
+              <!-- 自定义属性 -->
+              <block wx:for="{{character.appearance.customAttrs}}" wx:key="index" wx:for-item="attr" wx:for-index="attrIdx">
+                <view class="appearance-attr">
+                  <block wx:if="{{editingSection === 'appearance'}}">
+                    <view class="attr-lock-btn" bindtap="onToggleAppearanceAttrLock" data-index="{{attrIdx}}">
+                      <text class="attr-lock-icon">{{attr.locked ? '🔒' : '🔓'}}</text>
+                    </view>
+                    <block wx:if="{{attr.locked}}">
+                      <text class="attr-label-text">{{attr.label || '属性名'}}</text>
+                    </block>
+                    <block wx:else>
+                      <input class="attr-label-input input-short" value="{{attr.label}}" data-path="appearance.customAttrs" data-index="{{attrIdx}}" data-subfield="label" bindinput="onFieldInput" placeholder="属性名" />
+                    </block>
+                    <input class="attr-input attr-value-input input-short" value="{{attr.value}}" data-path="appearance.customAttrs" data-index="{{attrIdx}}" data-subfield="value" bindinput="onFieldInput" placeholder="输入值" />
+                    <view wx:if="{{!attr.locked}}" class="attr-delete-btn" bindtap="onDeleteAppearanceAttr" data-index="{{attrIdx}}">×</view>
+                  </block>
+                  <block wx:else>
+                    <view class="attr-color-dot custom-dot"></view>
+                    <text class="attr-label">{{attr.label}}</text>
+                    <text class="attr-value">{{attr.value}}</text>
+                  </block>
+                </view>
+              </block>
+              <!-- 添加自定义属性按钮（仅编辑模式） -->
+              <view wx:if="{{editingSection === 'appearance'}}" class="attr-add-btn" bindtap="onAddAppearanceAttr">+</view>
             </view>
             <view class="appearance-detail-wrap">
               <block wx:if="{{editingSection === 'appearance'}}"><textarea class="appearance-detail-input input-paragraph" value="{{character.appearance.detail}}" data-path="appearance.detail" bindinput="onFieldInput" placeholder="详细外观描述" /></block>

@@ -267,6 +267,33 @@ Page({
     this.setData({ character: c });
   },
 
+  /** 添加自定义外观属性 */
+  onAddAppearanceAttr() {
+    const c = JSON.parse(JSON.stringify(this.data.character));
+    if (!c.appearance) c.appearance = {};
+    if (!Array.isArray(c.appearance.customAttrs)) c.appearance.customAttrs = [];
+    c.appearance.customAttrs.push({ label: '', value: '', locked: false });
+    this.setData({ character: c });
+  },
+
+  /** 删除自定义外观属性 */
+  onDeleteAppearanceAttr(e: WechatMiniprogram.TouchEvent) {
+    const index = e.currentTarget.dataset.index as number;
+    const c = JSON.parse(JSON.stringify(this.data.character));
+    if (!Array.isArray(c.appearance?.customAttrs)) return;
+    c.appearance.customAttrs.splice(index, 1);
+    this.setData({ character: c });
+  },
+
+  /** 切换自定义外观属性的锁定状态 */
+  onToggleAppearanceAttrLock(e: WechatMiniprogram.TouchEvent) {
+    const index = e.currentTarget.dataset.index as number;
+    const c = JSON.parse(JSON.stringify(this.data.character));
+    if (!Array.isArray(c.appearance?.customAttrs)) return;
+    c.appearance.customAttrs[index].locked = !c.appearance.customAttrs[index].locked;
+    this.setData({ character: c });
+  },
+
   /** 切换编辑模式：点击「编辑」进入编辑，点击「完成编辑」保存并同步云端 */
   onToggleEdit(e: WechatMiniprogram.TouchEvent) {
     const key = (e.currentTarget.dataset.section || '') as EditSectionKey;
@@ -277,6 +304,19 @@ Page({
       let c = this.data.character;
       if (key === 'personalityTags' && Array.isArray(c.personalityTags)) {
         c = { ...c, personalityTags: c.personalityTags.filter(t => t && String(t).trim()) };
+        this.setData({ character: c });
+      }
+      if (key === 'appearance' && Array.isArray(c.appearance?.customAttrs)) {
+        // 自动删去属性名和值都为空的行
+        c = {
+          ...c,
+          appearance: {
+            ...c.appearance,
+            customAttrs: c.appearance.customAttrs.filter(
+              a => String(a.label ?? '').trim() || String(a.value ?? '').trim()
+            ),
+          },
+        };
         this.setData({ character: c });
       }
       const err = this.validateSectionEmpty(key);
@@ -307,7 +347,14 @@ Page({
 
     const character = JSON.parse(JSON.stringify(this.data.character));
     if (index !== undefined && index !== null) {
-      const arr = character[path];
+      // 支持嵌套路径数组，如 'appearance.customAttrs'
+      const parts = path.split('.');
+      let parent: any = character;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!parent[parts[i]]) parent[parts[i]] = {};
+        parent = parent[parts[i]];
+      }
+      const arr = parent[parts[parts.length - 1]];
       if (!arr || !Array.isArray(arr)) return;
       if (subfield) {
         if (!arr[index]) arr[index] = {};

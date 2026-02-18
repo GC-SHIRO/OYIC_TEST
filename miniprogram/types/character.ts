@@ -6,11 +6,19 @@
 
 // ========== 角色信息子结构 ==========
 
+/** 外观自定义属性条目 */
+export interface IAppearanceAttr {
+  label: string;           // 属性名（如「发型」）
+  value: string;           // 属性值
+  locked: boolean;         // 锁定时标签不可编辑、不可删除
+}
+
 /** 外观描述 */
 export interface IAppearance {
   hairColor: string;       // 发色
   eyeColor: string;        // 瞳色
   detail: string;          // 详细描述（长文本段）
+  customAttrs?: IAppearanceAttr[]; // 用户自定义外观属性
 }
 
 /** 特殊能力 */

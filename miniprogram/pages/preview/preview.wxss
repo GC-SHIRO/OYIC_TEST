@@ -414,6 +414,86 @@
   font-weight: 500;
 }
 
+/* 自定义属性控件 */
+.attr-lock-btn {
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16rpx;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border: 2rpx solid #d1d5db;
+  flex-shrink: 0;
+}
+
+.attr-lock-fixed {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.attr-lock-icon {
+  font-size: 26rpx;
+  line-height: 1;
+}
+
+.attr-label-input {
+  width: 140rpx;
+  flex-shrink: 0;
+  font-size: 26rpx;
+  color: #4b5563;
+  padding: 6rpx 0;
+  border-bottom: 3rpx solid #9ca3af;
+}
+
+.attr-label-text {
+  width: 140rpx;
+  flex-shrink: 0;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.attr-value-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.attr-delete-btn {
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16rpx;
+  background: #fef2f2;
+  border: 2rpx solid #fecaca;
+  color: #ef4444;
+  font-size: 32rpx;
+  font-weight: 700;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.attr-add-btn {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border: 2rpx dashed #9ca3af;
+  border-radius: 20rpx;
+  font-size: 36rpx;
+  color: #6b7280;
+  font-weight: 600;
+  margin-top: 4rpx;
+}
+
+.custom-dot {
+  background: linear-gradient(135deg, #d1d5db, #9ca3af);
+}
+
 .appearance-detail-wrap {
   margin-top: 0;
 }
