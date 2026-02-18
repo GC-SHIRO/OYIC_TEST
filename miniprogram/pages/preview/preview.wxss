@@ -149,6 +149,59 @@
   border: 2rpx solid #d1d5db;
 }
 
+/* 输入方式分类（统一改样式时优先改这里）
+ * input-short: 短输入（姓名/性别/物种/关系角色等）
+ * input-long:  长输入（能力名/较长单行关系描述）
+ * input-paragraph: 段落输入（简介/性格/背景/故事线/描述）
+ * input-number: 数字输入（六维图分值）
+ * input-tag: tag 输入（性格标签）
+ */
+.input-short,
+.input-long {
+  font-size: 28rpx;
+  color: #4b5563;
+  padding: 8rpx 0;
+  min-width: 0;
+  border-bottom: 3rpx solid #9ca3af;
+}
+
+.input-paragraph {
+  font-size: 26rpx;
+  color: #4b5563;
+  line-height: 1.8;
+  padding: 24rpx 28rpx;
+  background: #f9fafb;
+  border-radius: 24rpx;
+  border: 2rpx solid #e5e7eb;
+  border-bottom: 3rpx solid #9ca3af;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 120rpx;
+}
+
+.input-number {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #111827;
+  width: 80rpx;
+  text-align: center;
+  padding: 4rpx 8rpx;
+  border: 2rpx solid #e5e7eb;
+  border-bottom: 3rpx solid #9ca3af;
+  border-radius: 12rpx;
+}
+
+.input-tag {
+  font-size: 26rpx;
+  color: #111827;
+  padding: 8rpx 16rpx;
+  background: #fff;
+  border: 2rpx solid #e5e7eb;
+  border-bottom: 3rpx solid #9ca3af;
+  border-radius: 20rpx;
+  min-width: 120rpx;
+}
+
 /* 编辑模式下的输入框：底部加深，便于区分。
  * TODO 深色模式：此处 border-bottom 需切换为浅色系（如 rgba(255,255,255,0.3)）
  */
