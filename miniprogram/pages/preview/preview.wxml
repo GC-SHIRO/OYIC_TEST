@@ -141,8 +141,6 @@
                   </block>
                 </view>
               </block>
-              <!-- 添加自定义属性按钮（仅编辑模式） -->
-              <view wx:if="{{editingSection === 'appearance'}}" class="attr-add-btn" bindtap="onAddAppearanceAttr">+</view>
             </view>
             <view class="appearance-detail-wrap">
               <block wx:if="{{editingSection === 'appearance'}}"><textarea class="appearance-detail-input input-paragraph" value="{{character.appearance.detail}}" data-path="appearance.detail" bindinput="onFieldInput" placeholder="详细外观描述" /></block>

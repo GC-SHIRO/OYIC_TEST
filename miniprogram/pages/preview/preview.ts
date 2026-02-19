@@ -229,7 +229,6 @@ Page({
       case 'appearance':
         if (empty(c.appearance?.hairColor)) return '发色不能为空';
         if (empty(c.appearance?.eyeColor)) return '瞳色不能为空';
-        if (empty(c.appearance?.detail)) return '外观详细描述不能为空';
         break;
       case 'personality':
         if (empty(c.personality)) return '性格描述不能为空';
@@ -287,15 +286,6 @@ Page({
     this.setData({ focusedTagIndex: -1 });
   },
 
-  /** 添加自定义外观属性 */
-  onAddAppearanceAttr() {
-    const c = JSON.parse(JSON.stringify(this.data.character));
-    if (!c.appearance) c.appearance = {};
-    if (!Array.isArray(c.appearance.customAttrs)) c.appearance.customAttrs = [];
-    c.appearance.customAttrs.push({ label: '', value: '', locked: false });
-    this.setData({ character: c });
-  },
-
   /** 删除自定义外观属性 */
   onDeleteAppearanceAttr(e: WechatMiniprogram.TouchEvent) {
     const index = e.currentTarget.dataset.index as number;
@@ -324,19 +314,6 @@ Page({
       let c = this.data.character;
       if (key === 'personalityTags' && Array.isArray(c.personalityTags)) {
         c = { ...c, personalityTags: c.personalityTags.filter(t => t && String(t).trim()) };
-        this.setData({ character: c });
-      }
-      if (key === 'appearance' && Array.isArray(c.appearance?.customAttrs)) {
-        // 自动删去属性名和值都为空的行
-        c = {
-          ...c,
-          appearance: {
-            ...c.appearance,
-            customAttrs: c.appearance.customAttrs.filter(
-              a => String(a.label ?? '').trim() || String(a.value ?? '').trim()
-            ),
-          },
-        };
         this.setData({ character: c });
       }
       const err = this.validateSectionEmpty(key);
