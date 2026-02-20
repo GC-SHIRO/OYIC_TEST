@@ -53,6 +53,7 @@ async function createDraftCard(openId) {
     status: 'incomplete',
     conversationId: '',
     avatar: '',
+    gallery: [],
     characterInfo: buildEmptyCharacterInfo(),
     createdAt: now,
     updatedAt: now,
@@ -84,6 +85,7 @@ async function createCard(event, openId) {
     status: data.status || 'incomplete',   // 创建状态
     conversationId: data.conversationId || '', // Dify 端的会话 ID
     avatar: data.avatar || '',             // 角色头像
+    gallery: Array.isArray(data.gallery) ? data.gallery : [],
     characterInfo: data.characterInfo || {},  // 角色具体信息
     createdAt: now,
     updatedAt: now,
@@ -113,6 +115,7 @@ async function updateCard(event, openId) {
   if (data.status !== undefined) updateData.status = data.status
   if (data.conversationId !== undefined) updateData.conversationId = data.conversationId
   if (data.avatar !== undefined) updateData.avatar = data.avatar
+  if (data.gallery !== undefined) updateData.gallery = Array.isArray(data.gallery) ? data.gallery : []
   if (data.characterInfo !== undefined) updateData.characterInfo = data.characterInfo
   updateData.updatedAt = db.serverDate()
 

@@ -265,7 +265,7 @@ miniprogram-1/
 | 集合 | 主要字段 | 说明 |
 |------|----------|------|
 | **users** | `_openid`, `nickname`, `avatar`, `signature`, `balance`, `loginCount`, `createdAt` | 用户信息 |
-| **characters** | `cardId`, `_openid`, `status`, `conversationId`, `avatar`, `characterInfo`, `createdAt` | 角色卡数据 |
+| **characters** | `cardId`, `_openid`, `status`, `conversationId`, `avatar`, `gallery`, `characterInfo`, `createdAt` | 角色卡数据 |
 
 ---
 

@@ -5,6 +5,7 @@ import type {
   ICharacterInfo,
 } from '../../types/character';
 import { getCharacter, saveCharacter, fetchCharacterFromCloud, PLACEHOLDER_IMAGE } from '../../services/storage';
+import { uploadImagesToCloud } from '../../services/image';
 
 // 可编辑的 section 标识
 type EditSectionKey =
@@ -25,6 +26,10 @@ Page({
     readonly: false,
     loading: true,
     isCompleting: false,
+    activeTab: 'profile',
+    galleryImages: [] as string[],
+    uploadingGallery: false,
+    isGalleryDeleteMode: false,
     character: {} as ICharacterInfo,
     /** 当前处于编辑状态的 section，空字符串表示未编辑 */
     editingSection: '' as EditSectionKey | '',
@@ -81,7 +86,11 @@ Page({
     const localCard = getCharacter(characterId);
     if (localCard?.characterInfo?.name) {
       const char = this.normalizeRadarTo100(localCard.characterInfo);
-      this.setData({ character: char, loading: false });
+      this.setData({
+        character: char,
+        galleryImages: Array.isArray(localCard.gallery) ? localCard.gallery : [],
+        loading: false,
+      });
       setTimeout(() => this.drawRadarChart(), 300);
     }
 
@@ -89,12 +98,108 @@ Page({
     const cloudCard = await fetchCharacterFromCloud(characterId);
     if (cloudCard?.characterInfo?.name) {
       const char = this.normalizeRadarTo100(cloudCard.characterInfo);
-      this.setData({ character: char, loading: false });
+      this.setData({
+        character: char,
+        galleryImages: Array.isArray(cloudCard.gallery) ? cloudCard.gallery : [],
+        loading: false,
+      });
       setTimeout(() => this.drawRadarChart(), 300);
     } else if (!localCard?.characterInfo?.name) {
       this.setData({ loading: false });
       wx.showToast({ title: '未找到角色数据', icon: 'none' });
     }
+  },
+
+  onSwitchTab(e: WechatMiniprogram.TouchEvent) {
+    const tab = String(e.currentTarget.dataset.tab || 'profile');
+    if (tab !== 'profile' && tab !== 'gallery') return;
+    this.setData({ activeTab: tab, isGalleryDeleteMode: false });
+    if (tab === 'profile') {
+      setTimeout(() => this.drawRadarChart(), 100);
+    }
+  },
+
+  async onAddGalleryImage() {
+    const { uploadingGallery, galleryImages } = this.data;
+    if (uploadingGallery) return;
+
+    const remain = Math.max(0, 20 - (galleryImages?.length || 0));
+    if (remain <= 0) {
+      wx.showToast({ title: '画廊最多 20 张图片', icon: 'none' });
+      return;
+    }
+
+    try {
+      const chooseRes = await wx.chooseImage({
+        count: Math.min(9, remain),
+        sizeType: ['compressed'],
+        sourceType: ['album', 'camera'],
+      });
+
+      const tempPaths = chooseRes.tempFilePaths || [];
+      if (!tempPaths.length) return;
+
+      this.setData({ uploadingGallery: true });
+      wx.showLoading({ title: '上传中...', mask: true });
+
+      const fileIDs = await uploadImagesToCloud(tempPaths, 'character_gallery');
+      const nextGallery = [...(galleryImages || []), ...fileIDs];
+      this.setData({ galleryImages: nextGallery });
+      await this.syncCharacterToCloud();
+      this.showSaveTip('画廊已保存到云端');
+    } catch (error: any) {
+      if (error?.errMsg && String(error.errMsg).includes('cancel')) {
+        return;
+      }
+      wx.showToast({ title: '上传失败，请稍后重试', icon: 'none' });
+    } finally {
+      wx.hideLoading();
+      this.setData({ uploadingGallery: false });
+    }
+  },
+
+  onPreviewGalleryImage(e: WechatMiniprogram.TouchEvent) {
+    if (this.data.isGalleryDeleteMode) return;
+    const url = String(e.currentTarget.dataset.url || '');
+    const { galleryImages } = this.data;
+    if (!url) return;
+    wx.previewImage({
+      current: url,
+      urls: galleryImages || [],
+    });
+  },
+
+  onGalleryLongPress() {
+    if (!this.data.isGalleryDeleteMode) {
+      this.setData({ isGalleryDeleteMode: true });
+    }
+  },
+
+  onExitGalleryDeleteMode() {
+    this.setData({ isGalleryDeleteMode: false });
+  },
+
+  onGalleryDeleteTap(e: WechatMiniprogram.TouchEvent) {
+    const index = Number(e.currentTarget.dataset.index);
+    const { galleryImages } = this.data;
+    if (!Array.isArray(galleryImages) || Number.isNaN(index) || index < 0 || index >= galleryImages.length) return;
+
+    wx.showModal({
+      title: '删除图片',
+      content: '确定从角色画廊中删除这张图片吗？',
+      confirmText: '删除',
+      confirmColor: '#ef4444',
+      success: async (res) => {
+        if (!res.confirm) return;
+        const nextGallery = galleryImages.filter((_, i) => i !== index);
+        this.setData({
+          galleryImages: nextGallery,
+          isGalleryDeleteMode: nextGallery.length > 0,
+        });
+        await this.syncCharacterToCloud();
+        this.showSaveTip('已从画廊删除');
+      },
+    });
   },
 
   // 绘制性格六维雷达图
@@ -432,13 +537,14 @@ Page({
 
   /** 同步角色卡到云端（编辑完成后调用） */
   async syncCharacterToCloud() {
-    const { character, characterId } = this.data;
-    if (!characterId || !character?.name) return;
+    const { character, characterId, galleryImages } = this.data;
+    if (!characterId) return;
 
     const card = getCharacter(characterId);
     if (card) {
       try {
         card.characterInfo = character;
+        card.gallery = Array.isArray(galleryImages) ? galleryImages : [];
         card.updatedAt = Date.now();
         saveCharacter(card);
         console.log('[preview] 上传成功', { characterId, character });
@@ -473,7 +579,7 @@ Page({
 
   // 完成创建 → 标记 completed → 同步云端 → 弹窗 → 回首页
   async onComplete() {
-    const { character, characterId, isCompleting } = this.data;
+    const { character, characterId, isCompleting, galleryImages } = this.data;
 
     if (!characterId) return;
     if (isCompleting) return;
@@ -512,6 +618,7 @@ Page({
     if (card) {
       card.status = 'completed';
       card.characterInfo = character;
+      card.gallery = Array.isArray(galleryImages) ? galleryImages : [];
       card.avatar = card.avatar || PLACEHOLDER_IMAGE;
       saveCharacter(card); // saveCharacter 内部会自动异步同步到云端
     } else {
@@ -525,6 +632,7 @@ Page({
         status: 'completed',
         conversationId: '',
         avatar: PLACEHOLDER_IMAGE,
+        gallery: Array.isArray(galleryImages) ? galleryImages : [],
         characterInfo: character,
       };
       saveCharacter(newCard);
