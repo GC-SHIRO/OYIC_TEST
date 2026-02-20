@@ -26,6 +26,8 @@ Page({
     loading: true,
     isCompleting: false,
     character: {} as ICharacterInfo,
+    /** 角色卡状态：incomplete | completed */
+    characterStatus: 'incomplete' as 'incomplete' | 'completed',
     /** 当前处于编辑状态的 section，空字符串表示未编辑 */
     editingSection: '' as EditSectionKey | '',
     /** 底部轻提示（保存成功） */
@@ -79,9 +81,14 @@ Page({
   async loadCharacterDetail(characterId: string) {
     // 先尝试本地缓存快速渲染
     const localCard = getCharacter(characterId);
+    
     if (localCard?.characterInfo?.name) {
       const char = this.normalizeRadarTo100(localCard.characterInfo);
-      this.setData({ character: char, loading: false });
+      this.setData({ 
+        character: char, 
+        characterStatus: localCard.status || 'incomplete',
+        loading: false 
+      });
       setTimeout(() => this.drawRadarChart(), 300);
     }
 
@@ -89,7 +96,11 @@ Page({
     const cloudCard = await fetchCharacterFromCloud(characterId);
     if (cloudCard?.characterInfo?.name) {
       const char = this.normalizeRadarTo100(cloudCard.characterInfo);
-      this.setData({ character: char, loading: false });
+      this.setData({ 
+        character: char, 
+        characterStatus: cloudCard.status || 'incomplete',
+        loading: false 
+      });
       setTimeout(() => this.drawRadarChart(), 300);
     } else if (!localCard?.characterInfo?.name) {
       this.setData({ loading: false });
@@ -276,7 +287,7 @@ Page({
   },
 
   /** tag 输入框聚焦：高亮对应 wrapper */
-  onTagFocus(e: WechatMiniprogram.FocusEvent) {
+  onTagFocus(e: WechatMiniprogram.BaseEvent) {
     const index = (e.currentTarget.dataset as any).index as number;
     this.setData({ focusedTagIndex: index });
   },
@@ -359,7 +370,7 @@ Page({
   },
 
   /** 聚焦输入框 */
-  onInputFocus(e: WechatMiniprogram.InputFocusEvent) {
+  onInputFocus(e: WechatMiniprogram.BaseEvent) {
     const { path, index, subfield } = e.currentTarget.dataset;
     let focusKey = path || '';
     if (typeof index !== 'undefined') focusKey += `-${index}`;
@@ -461,14 +472,9 @@ Page({
     }
   },
 
-  // 返回
+  // 返回首页
   onBack() {
-    wx.navigateBack();
-  },
-
-  // 继续创作（返回 chat 页面）
-  onContinue() {
-    wx.navigateBack();
+    wx.switchTab({ url: '/pages/home/home' });
   },
 
   // 完成创建 → 标记 completed → 同步云端 → 弹窗 → 回首页
@@ -542,6 +548,33 @@ Page({
         this.setData({ isCompleting: false });
         wx.switchTab({ url: '/pages/home/home' });
       },
+    });
+  },
+
+  // 继续设计 - 点击后修改状态为 incomplete 并返回 chat 页面
+  async onContinueDesign() {
+    const { characterId } = this.data;
+    if (!characterId) return;
+
+    const card = getCharacter(characterId);
+    if (card) {
+      card.status = 'incomplete';
+      card.updatedAt = Date.now();
+      saveCharacter(card);
+    }
+
+    wx.redirectTo({
+      url: `/pages/chat/chat?characterId=${characterId}`,
+    });
+  },
+
+  // 导出作品 - 用于已完成状态，显示功能开发中弹窗
+  onExport() {
+    wx.showModal({
+      title: '提示',
+      content: '功能开发中',
+      showCancel: false,
+      confirmText: '知道了',
     });
   },
 

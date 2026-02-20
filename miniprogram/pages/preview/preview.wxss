@@ -4,6 +4,7 @@
   background: linear-gradient(180deg, #f7f8fa 0%, #eef0f3 100%);
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 /* 顶部导航栏 */
@@ -49,6 +50,8 @@
   flex: 1;
   padding: 200rpx 32rpx 0;
   box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 
 .bottom-placeholder {
@@ -593,12 +596,17 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
 }
 
 .radar-canvas {
   width: 400rpx;
   height: 400rpx;
   margin-bottom: 0;
+  position: relative;
+  z-index: 0;
 }
 
 .radar-legends {
@@ -629,35 +637,39 @@
 /* 底部操作栏 */
 .action-bar {
   position: fixed;
-  bottom: 32rpx;
-  left: 32rpx;
-  right: 32rpx;
-  background: rgba(255, 255, 255, 0.96);
-  padding: 32rpx;
-  border-radius: 48rpx;
+  bottom: 48rpx;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  gap: 24rpx;
-  box-shadow: 0 16rpx 32rpx rgba(17, 24, 39, 0.12);
-  border: 2rpx solid rgba(229, 231, 235, 0.9);
+  flex-direction: row;
+  gap: 16rpx;
+  padding: 12rpx;
+  background: rgba(255, 255, 255, 0.72);
+  border: 2rpx solid rgba(255, 255, 255, 0.6);
+  border-radius: 999rpx;
+  box-shadow: 0 12rpx 32rpx rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(5rpx) saturate(180%);
+  -webkit-backdrop-filter: blur(20rpx) saturate(180%);
+  z-index: 999;
 }
 
-.btn-secondary {
-  flex: 1;
+.tab-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  height: 72rpx;
+  min-width: 190rpx;
+  padding: 0 40rpx;
+  background: rgba(209, 213, 219, 0.5);
+  border-radius: 999rpx;
 }
 
-.btn-primary {
-  flex: 1;
-}
-
-/* TDesign组件样式覆盖 */
-.action-bar .t-button {
-  border-radius: 48rpx !important;
-  height: 96rpx !important;
-}
-
-.action-bar .t-button--primary {
-  background: linear-gradient(135deg, #9ca3af 0%, #4b5563 100%) !important;
-  border: none !important;
+.tab-text {
+  font-size: 28rpx;
+  color: #374151;
+  font-weight: 500;
+  line-height: 72rpx;
 }
 
 .save-tip {
@@ -669,16 +681,17 @@
   max-width: calc(100vw - 64rpx);
   padding: 16rpx 28rpx;
   border-radius: 24rpx;
-  background: rgba(17, 24, 39, 0.88);
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.95);
+  color: #111827;
   font-size: 24rpx;
   text-align: center;
   box-sizing: border-box;
-  box-shadow: 0 10rpx 24rpx rgba(17, 24, 39, 0.2);
+  box-shadow: 0 10rpx 24rpx rgba(17, 24, 39, 0.15);
   opacity: 0;
   pointer-events: none;
   z-index: 40;
   transition: opacity 150ms ease, transform 150ms ease;
+  border: 2rpx solid rgba(229, 231, 235, 0.8);
 }
 
 .save-tip--show {

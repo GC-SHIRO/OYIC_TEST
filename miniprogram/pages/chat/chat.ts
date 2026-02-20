@@ -542,12 +542,13 @@ Page({
     if (card) {
       card.characterInfo = charInfo;
       card.avatar = card.avatar || PLACEHOLDER_IMAGE;
+      card.status = 'completed';
       saveCharacter(card);
     }
 
     this.saveConversation();
 
-    wx.navigateTo({
+    wx.redirectTo({
       url: `/pages/preview/preview?characterId=${characterId}`,
     });
   },

@@ -291,23 +291,13 @@
   </scroll-view>
   
   <!-- 底部操作栏 -->
-  <view class="action-bar" wx:if="{{!loading && !readonly}}">
-    <t-button 
-      class="btn-secondary" 
-      theme="light" 
-      size="large"
-      bindtap="onContinue"
-    >
-      继续创作
-    </t-button>
-    <t-button 
-      class="btn-primary" 
-      theme="primary" 
-      size="large"
-      bindtap="onComplete"
-    >
-      完成创建
-    </t-button>
+  <view class="action-bar" wx:if="{{!loading}}">
+    <view class="tab-item" bindtap="onContinueDesign">
+      <view class="tab-text">继续设计</view>
+    </view>
+    <view class="tab-item" bindtap="onExport">
+      <view class="tab-text">导出作品</view>
+    </view>
   </view>
 
   <view class="save-tip {{saveTipVisible ? 'save-tip--show' : ''}} {{readonly ? 'save-tip--readonly' : ''}}">
