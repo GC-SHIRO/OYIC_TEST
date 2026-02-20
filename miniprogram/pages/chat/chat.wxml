@@ -25,7 +25,13 @@
         class="message {{item.role === 'ai' ? 'message-ai' : 'message-user'}} {{item.animate ? 'message-animate' : ''}}"
       >
         <view class="message-avatar">
-          <text>{{item.role === 'ai' ? 'AI' : '我'}}</text>
+          <t-avatar 
+            wx:if="{{item.role === 'user' && userAvatar}}" 
+            image="{{userAvatar}}" 
+            size="72rpx" 
+          />
+          <text wx:elif="{{item.role === 'user'}}">我</text>
+          <text wx:else>AI</text>
         </view>
         <view class="message-content">
           <!-- 消息气泡部分 -->

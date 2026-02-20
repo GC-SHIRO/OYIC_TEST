@@ -7,6 +7,7 @@
     "t-input": "tdesign-miniprogram/input/input",
     "t-loading": "tdesign-miniprogram/loading/loading",
     "t-image": "tdesign-miniprogram/image/image",
-    "t-chat-markdown": "tdesign-miniprogram/chat-markdown/chat-markdown"
+    "t-chat-markdown": "tdesign-miniprogram/chat-markdown/chat-markdown",
+    "t-avatar": "tdesign-miniprogram/avatar/avatar"
   }
 }

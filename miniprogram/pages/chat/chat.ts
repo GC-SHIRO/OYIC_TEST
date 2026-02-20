@@ -10,6 +10,7 @@ import {
   getCurrentUserId,
   PLACEHOLDER_IMAGE,
 } from '../../services/storage';
+import { getLocalUserInfo } from '../../services/user';
 import type { IAgentResponse } from '../../services/agent';
 import { chatWithDify, generateCharacterCard } from '../../services/agent';
 import { uploadImagesToCloud } from '../../services/image';
@@ -49,14 +50,23 @@ Page({
     isSending: false,
     scrollTop: 0,
     keyboardHeight: 0,
+    userAvatar: '',
   },
 
   onLoad(options: { characterId?: string }) {
+    this.loadUserAvatar();
     if (options.characterId) {
       this.setData({ characterId: options.characterId });
       this.loadExistingConversation(options.characterId);
     } else {
       this.showWelcomeMessage();
+    }
+  },
+
+  loadUserAvatar() {
+    const userInfo = getLocalUserInfo();
+    if (userInfo?.avatar) {
+      this.setData({ userAvatar: userInfo.avatar });
     }
   },
 
