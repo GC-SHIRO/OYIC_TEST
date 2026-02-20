@@ -26,6 +26,7 @@ Page({
     readonly: false,
     loading: true,
     isCompleting: false,
+    isNavigating: false,
     activeTab: 'profile',
     galleryImages: [] as string[],
     uploadingGallery: false,
@@ -661,14 +662,35 @@ Page({
 
   // 继续设计 - 点击后修改状态为 incomplete 并返回 chat 页面
   async onContinueDesign() {
-    const { characterId } = this.data;
-    if (!characterId) return;
+    const { characterId, isNavigating } = this.data;
+    if (!characterId || isNavigating) return;
+
+    // 设置标志位防止重复点击
+    this.setData({ isNavigating: true });
 
     const card = getCharacter(characterId);
     if (card) {
       card.status = 'incomplete';
       card.updatedAt = Date.now();
       saveCharacter(card);
+    }
+
+    // 发送同步消息给 Dify
+    try {
+      await wx.cloud.callFunction({
+        name: 'difyChat',
+        data: {
+          action: 'chat',
+          query: 'Sync',
+          conversationId: card?.conversationId || '',
+          cardId: characterId,
+          inputs: {
+            sync_card: card?.characterInfo || {},
+          },
+        },
+      });
+    } catch (err) {
+      console.error('发送同步消息失败:', err);
     }
 
     wx.redirectTo({

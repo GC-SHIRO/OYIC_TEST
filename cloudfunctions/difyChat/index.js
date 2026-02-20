@@ -121,7 +121,7 @@ async function sendChatMessage(event, openId) {
 
     // Dify API 调用
     const requestBody = {
-      inputs: {},
+      inputs: event.inputs || {},
       query: query,
       response_mode: 'streaming',
       conversation_id: conversationId || '',
