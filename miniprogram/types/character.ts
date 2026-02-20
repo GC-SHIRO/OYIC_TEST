@@ -85,6 +85,7 @@ export interface ICharacterCard {
   status: 'completed' | 'incomplete';            // 卡片创建状态
   conversationId?: string;                       // Dify 端的会话 ID
   avatar?: string;                               // 角色头像（可选）
+  gallery?: string[];                            // 角色画廊（云文件 fileID 列表）
   characterInfo: ICharacterInfo;                 // 角色具体信息
 }
 

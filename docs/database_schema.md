@@ -66,6 +66,7 @@
   "status": "completed|incomplete",
   "conversationId": "string",
   "avatar": "string",
+  "gallery": ["string"],
   "characterInfo": { "...": "..." },
   "createdAt": "serverDate",
   "updatedAt": "serverDate"
