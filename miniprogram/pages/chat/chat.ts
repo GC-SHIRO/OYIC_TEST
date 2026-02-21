@@ -392,6 +392,39 @@ Page({
         try {
           const fileIDs = await uploadImagesToCloud(tempFilePaths);
 
+          // 首次上传图片时，创建未完成角色卡（需要登录）
+          let { messages, difyConversationId, characterId } = this.data;
+          let activeCardId = characterId;
+          if (!activeCardId) {
+            const app = getApp<IAppOption>();
+            if (!app.globalData.openId) {
+              wx.showModal({
+                title: '请先登录',
+                content: '创建角色卡需要先登录账号',
+                confirmText: '去登录',
+                cancelText: '取消',
+                success: (res) => {
+                  if (res.confirm) {
+                    wx.navigateBack();
+                    setTimeout(() => wx.switchTab({ url: '/pages/profile/profile' }), 300);
+                  }
+                },
+              });
+              return;
+            }
+
+            const draft = await createCharacterDraftInCloud();
+            if (!draft) {
+              wx.showToast({ title: '创建角色卡失败', icon: 'none' });
+              return;
+            }
+
+            // 初始草稿已在云端创建，本地仅缓存加速
+            saveCharacter(draft, false);
+            activeCardId = draft.id;
+            this.setData({ characterId: draft.id });
+          }
+
           const userMessage: IMessage = {
             id: `user_${Date.now()}`,
             role: 'user',
@@ -401,7 +434,6 @@ Page({
             userId: getCurrentUserId(),
           };
 
-          const { messages, difyConversationId, characterId } = this.data;
           // 同步添加用户消息和 AI 占位消息，避免 setData race
           const requestId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
           const aiPlaceholder: IMessage = {
@@ -432,10 +464,19 @@ Page({
           this.startPendingSyncIfNeeded();
 
           // 调用 chatWithDify，传递 fileIDs
-          const response = await chatWithDify('图片参考', difyConversationId, characterId, requestId, fileIDs).catch((err: any) => {
+          const response = await chatWithDify('图片参考', difyConversationId, activeCardId, requestId, fileIDs).catch((err: any) => {
             console.error('chatWithDify 图片异常:', err);
             return { success: false, message: '', error: err?.message || String(err) };
           });
+
+          // 更新 conversationId
+          if (response.success && 'conversationId' in response && response.conversationId) {
+            const newConvId = response.conversationId;
+            if (newConvId !== difyConversationId) {
+              this.setData({ difyConversationId: newConvId });
+              this.updateCardConversationId(newConvId);
+            }
+          }
 
           const msgIndex = this.findMessageIndexById(aiPlaceholder.id);
           if (response.success && response.message) {

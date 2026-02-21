@@ -372,8 +372,24 @@ async function upsertConversation(openId, characterId, userText, aiText, request
   if (!characterId) return
 
   const now = Date.now()
+  const userMsgId = requestId ? `user_${requestId}` : `user_${now}`
+  const aiMsgId = requestId ? `ai_${requestId}` : `ai_${now + 1}`
+
+  const record = await ensureConversationRecord(openId, characterId)
+  if (!record || !record._id) return
+
+  const messages = Array.isArray(record.messages) ? record.messages : []
+
+  // 检查是否已存在相同 requestId 的消息，避免重复写入
+  const hasExistingUserMsg = messages.some((msg) => msg && msg.id === userMsgId)
+  const hasExistingAiMsg = messages.some((msg) => msg && msg.id === aiMsgId)
+  if (hasExistingUserMsg || hasExistingAiMsg) {
+    console.log('[upsertConversation] Skipping duplicate messages', { requestId, hasExistingUserMsg, hasExistingAiMsg })
+    return
+  }
+
   const userMsg = {
-    id: requestId ? `user_${requestId}` : `user_${now}`,
+    id: userMsgId,
     role: 'user',
     content: userText || '',
     timestamp: now,
@@ -382,7 +398,7 @@ async function upsertConversation(openId, characterId, userText, aiText, request
   }
 
   const aiMsg = {
-    id: requestId ? `ai_${requestId}` : `ai_${now + 1}`,
+    id: aiMsgId,
     role: 'ai',
     content: aiText || '',
     timestamp: now + 1,
@@ -407,9 +423,6 @@ async function upsertConversation(openId, characterId, userText, aiText, request
     // ignore
   }
 
-  const record = await ensureConversationRecord(openId, characterId)
-  if (!record || !record._id) return
-  const messages = Array.isArray(record.messages) ? record.messages : []
   if (!messages.some((msg) => msg && msg.id === 'welcome')) {
     await db.collection('conversations').doc(record._id).update({
       data: {
