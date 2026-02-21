@@ -162,10 +162,21 @@ Page({
 
     this.setData({ isSending: true });
 
-    // 负余额提示：允许继续，但先提醒用户
-    const canProceed = await this.checkBalanceWarning();
-    if (!canProceed) {
-      this.setData({ isSending: false });
+    // 余额为负时拦截，直接在对话中插入提示消息
+    const balanceOk = await this.checkBalanceNotNegative();
+    if (!balanceOk) {
+      const { messages } = this.data;
+      this.setData({
+        isSending: false,
+        messages: [...messages, {
+          id: `balance_err_${Date.now()}`,
+          role: 'ai',
+          content: '创作点不足，请前往充值页面充值后继续对话。',
+          timestamp: Date.now(),
+          userId: 'ai',
+        }],
+      });
+      this.scrollToBottom();
       return;
     }
 
@@ -487,9 +498,22 @@ Page({
       return;
     }
 
-    // 负余额提示：允许继续，但先提醒用户
-    const canProceed = await this.checkBalanceWarning();
-    if (!canProceed) return;
+    // 余额为负时拦截，直接在对话中插入提示消息
+    const balanceOk = await this.checkBalanceNotNegative();
+    if (!balanceOk) {
+      const { messages } = this.data;
+      this.setData({
+        messages: [...messages, {
+          id: `balance_err_${Date.now()}`,
+          role: 'ai',
+          content: '创作点不足，请前往充值页面充值后继续生成。',
+          timestamp: Date.now(),
+          userId: 'ai',
+        }],
+      });
+      this.scrollToBottom();
+      return;
+    }
 
     // 显示生成中状态
     this.setData({ isGenerating: true });
@@ -807,8 +831,8 @@ Page({
     storageSaveConversation(characterId, sanitized);
   },
 
-  // 检查创作点余额是否为负，负数时弹窗提醒
-  async checkBalanceWarning(): Promise<boolean> {
+  // 检查创作点余额是否 >= 0，负数时返回 false 由调用方在对话中插入提示
+  async checkBalanceNotNegative(): Promise<boolean> {
     try {
       const res = await wx.cloud.callFunction({
         name: 'billing',
@@ -819,24 +843,7 @@ Page({
       if (result.code !== 0 || !result.data) return true;
 
       const balance = Number(result.data.balance ?? 0);
-      if (balance >= 0) return true;
-
-      return await new Promise((resolve) => {
-        wx.showModal({
-          title: '创作点不足',
-          content: '当前创作点已为负数，继续对话或生成会进一步扣费。是否继续？',
-          confirmText: '继续',
-          cancelText: '去充值',
-          success: (modalRes) => {
-            if (modalRes.confirm) {
-              resolve(true);
-            } else {
-              wx.navigateTo({ url: '/pages/payment/payment' });
-              resolve(false);
-            }
-          },
-        });
-      });
+      return balance >= 0;
     } catch (err) {
       console.error('获取余额失败:', err);
       return true;
