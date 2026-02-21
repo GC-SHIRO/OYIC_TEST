@@ -41,17 +41,28 @@ const WELCOME_CONTENT = '你好！我是你的角色创作助手\n\n告诉我你
 
 exports.main = async (event, context) => {
   if (moduleInitError) {
+    console.error('[main] 模块初始化失败，直接返回错误:', moduleInitError)
     return { code: -1, message: 'module_init_error', error: moduleInitError }
   }
   const wxContext = cloud.getWXContext()
   const openId = wxContext.OPENID
 
   const { action } = event
+  const oid = openId ? openId.slice(-6) : 'unknown'
+  console.log(`[main] action=${action} openId=***${oid}`)
 
   try {
     switch (action) {
       case 'chat':
         return await sendChatMessage(event, openId)
+      // ---- 异步任务模式（解决 60 秒超时问题）----
+      case 'startChat':
+        return await startChatJob(event, openId)
+      case 'runJob':
+        return await runChatJobById(event, openId)
+      case 'pollChat':
+        return await pollChatJobById(event, openId)
+      // ---- end ----
       case 'settleGiveResultCharge':
         return await settleGiveResultCharge(event, openId)
       case 'ping':
@@ -270,6 +281,364 @@ async function sendChatMessage(event, openId) {
   } finally {
     if (shouldFinalizeRequest) {
       await finishConversationRequest(openId, cardId, requestId, finalizeStatus)
+    }
+  }
+}
+
+// ================================
+// 工具：自动建集合后写入文档
+// 微信云数据库不会自动创建集合，首次使用需 createCollection 或在控制台手动建
+// ================================
+async function ensureCollectionAndAdd(collectionName, data) {
+  try {
+    return await db.collection(collectionName).add({ data })
+  } catch (e) {
+    const msg = e && e.message ? e.message : String(e)
+    // 集合不存在时自动创建后重试
+    if (msg.includes('collection not exists') || msg.includes('Table not exist') || msg.includes('-502005')) {
+      console.warn(`[ensureCollectionAndAdd] 集合 "${collectionName}" 不存在，尝试自动创建...`)
+      try {
+        await db.createCollection(collectionName)
+        console.log(`[ensureCollectionAndAdd] 集合 "${collectionName}" 创建成功，重试写入`)
+      } catch (createErr) {
+        // 并发场景下可能已被其他实例创建，忽略"已存在"错误
+        const createMsg = createErr && createErr.message ? createErr.message : String(createErr)
+        if (!createMsg.includes('already exists') && !createMsg.includes('existed')) {
+          console.error(`[ensureCollectionAndAdd] 创建集合失败:`, createMsg)
+          throw createErr
+        }
+        console.log(`[ensureCollectionAndAdd] 集合已存在（并发创建），继续重试写入`)
+      }
+      return await db.collection(collectionName).add({ data })
+    }
+    throw e
+  }
+}
+
+// ================================
+// 异步任务三件套：startChat / runJob / pollChat
+// ================================
+
+/**
+ * [startChat] 快速创建异步聊天任务并立刻返回 jobId
+ * 耗时 < 1 秒，不阻塞前端
+ */
+async function startChatJob(event, openId) {
+  const { query, conversationId, files, cardId, requestId: rawRequestId } = event
+  const requestId = normalizeRequestId(rawRequestId)
+
+  console.log('[startChatJob] 入参:', {
+    queryPreview: typeof query === 'string' ? query.slice(0, 100) : typeof query,
+    conversationId: conversationId || '',
+    cardId: cardId || '',
+    requestId,
+    filesCount: Array.isArray(files) ? files.length : 0,
+  })
+
+  if (!query) {
+    console.warn('[startChatJob] 缺少 query 参数，拒绝请求')
+    return { code: -1, message: '缺少 query 参数' }
+  }
+
+  const user = await getUserByOpenId(openId)
+  if (!user) {
+    console.warn('[startChatJob] 用户不存在:', openId)
+    return { code: -1, message: '用户不存在' }
+  }
+  console.log('[startChatJob] 用户余额:', user.balance)
+
+  // 去重检查（同 sendChatMessage）
+  const isSync = isSyncRequest(query)
+  if (!isSync && cardId && requestId) {
+    const requestState = await beginConversationRequest(openId, cardId, requestId)
+    if (requestState.duplicate) {
+      console.warn('[startChatJob] 重复请求，拒绝:', { cardId, requestId })
+      return { code: 1, message: '请求处理中，请勿重复提交' }
+    }
+    console.log('[startChatJob] 去重检查通过')
+  }
+
+  // 生成任务 ID
+  const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+
+  // 规范 files
+  const normalizedFiles = Array.isArray(files)
+    ? files.filter((f) => typeof f === 'string').slice(0, 6)
+    : []
+
+  await ensureCollectionAndAdd('chatJobs', {
+    _openid: openId,
+    jobId,
+    status: 'pending',
+    query,
+    conversationId: conversationId || '',
+    files: normalizedFiles,
+    cardId: cardId || '',
+    requestId: requestId || '',
+    createdAt: db.serverDate(),
+    updatedAt: db.serverDate(),
+  })
+
+  console.log('[startChatJob] 任务创建成功:', { jobId, cardId, requestId, isSync })
+  return { code: 0, message: 'ok', data: { jobId } }
+}
+
+/**
+ * [runJob] 执行异步聊天任务（由前端 fire-and-forget 触发）
+ * 在独立的云函数实例中运行，享有完整 60 秒，httpPostSSE 超时已设为 55 秒
+ */
+async function runChatJobById(event, openId) {
+  const { jobId } = event
+  const t0 = Date.now()
+  console.log('[runChatJobById] 开始执行:', { jobId })
+
+  if (!jobId) {
+    console.warn('[runChatJobById] 缺少 jobId')
+    return { code: -1, message: '缺少 jobId' }
+  }
+
+  // 查询任务（限定 _openid 防止越权）
+  const res = await db.collection('chatJobs').where({ jobId, _openid: openId }).limit(1).get()
+  const job = res.data && res.data.length > 0 ? res.data[0] : null
+  if (!job) {
+    console.warn('[runChatJobById] 任务不存在:', { jobId })
+    return { code: -1, message: '任务不存在' }
+  }
+  if (job.status !== 'pending') {
+    console.log('[runChatJobById] 任务已处理，跳过:', { jobId, status: job.status })
+    return { code: 0, message: '任务已处理' }
+  }
+
+  console.log('[runChatJobById] 任务信息:', {
+    jobId,
+    cardId: job.cardId || '',
+    requestId: job.requestId || '',
+    queryPreview: typeof job.query === 'string' ? job.query.slice(0, 100) : '',
+    filesCount: Array.isArray(job.files) ? job.files.length : 0,
+    conversationId: job.conversationId || '',
+  })
+
+  // 标记为 running
+  await db.collection('chatJobs').doc(job._id).update({
+    data: { status: 'running', updatedAt: db.serverDate() }
+  })
+  console.log('[runChatJobById] 已标记 running，准备调用 Dify')
+
+  const { query, conversationId, files: rawFiles, cardId, requestId } = job
+  const isCardGen = isCardGenRequest(query)
+  const isSync = isSyncRequest(query)
+  let finalizeStatus = 'failed'
+  const shouldFinalizeRequest = !isSync && cardId && requestId
+
+  try {
+    let files = Array.isArray(rawFiles) ? rawFiles.filter((f) => typeof f === 'string').slice(0, 6) : []
+
+    // 构造 Dify 请求体
+    const requestBody = {
+      inputs: {},
+      query,
+      response_mode: 'streaming',
+      conversation_id: conversationId || '',
+      user: openId,
+    }
+
+    if (files.length > 0) {
+      try {
+        if (typeof cloud.getTempFileURL === 'function') {
+          const urlRes = await cloud.getTempFileURL({ fileList: files })
+          const fileUrls = Array.isArray(urlRes.fileList)
+            ? urlRes.fileList.map((f) => f.tempFileURL).filter(Boolean)
+            : []
+          if (fileUrls.length > 0) {
+            const filesObj = fileUrls.map((u) => {
+              try {
+                const pathname = new URL(u).pathname || ''
+                const name = pathname.split('/').pop() || ''
+                const ext = (name.split('.').pop() || '').toUpperCase()
+                const obj = { type: 'image', transfer_method: 'remote_url', url: u, name }
+                if (ext) obj.format = ext
+                return obj
+              } catch (e) {
+                return { type: 'image', transfer_method: 'remote_url', url: u }
+              }
+            })
+            requestBody.files = filesObj
+            requestBody.inputs.files = filesObj
+            if (typeof requestBody.query === 'string' && !requestBody.query.includes('图片')) {
+              requestBody.query = `参考图片\n${requestBody.query}`
+            }
+          } else {
+            requestBody.files = files
+          }
+        } else {
+          requestBody.files = files
+        }
+      } catch (e) {
+        console.warn('runChatJobById: getTempFileURL 失败', e && e.message ? e.message : e)
+        requestBody.files = files
+      }
+    }
+
+    let result
+    const difyT0 = Date.now()
+    console.log('[runChatJobById] 发起 Dify httpPostSSE 请求...')
+    try {
+      result = await httpPostSSE(
+        `${DIFY_BASE_URL}/chat-messages`,
+        requestBody,
+        { 'Authorization': `Bearer ${DIFY_API_KEY}`, 'Content-Type': 'application/json' }
+      )
+    } catch (e) {
+      result = { error: e && e.message ? e.message : String(e) }
+    }
+    const difyElapsed = Date.now() - difyT0
+    console.log(`[runChatJobById] Dify 请求完成，耗时 ${difyElapsed}ms`, {
+      hasError: !!result.error,
+      answerLen: typeof result.answer === 'string' ? result.answer.length : 0,
+      tokens: result.tokens || 0,
+      conversationId: result.conversationId || '',
+      messageId: result.messageId || '',
+      error: result.error || '',
+    })
+
+    if (result.error) {
+      console.error('[runChatJobById] Dify 返回错误:', result.error)
+      await db.collection('chatJobs').doc(job._id).update({
+        data: { status: 'failed', error: result.error, updatedAt: db.serverDate() }
+      })
+      return { code: -1, message: result.error }
+    }
+
+    const tokens = result.tokens || 0
+    const chatCost = calcChatCost(tokens)
+    console.log('[runChatJobById] 计费:', { tokens, chatCost })
+
+    // 计费 & 对话持久化（与 sendChatMessage 相同逻辑）
+    if (!isSync) {
+      if (isCardGen) {
+        if (cardId) {
+          console.log('[runChatJobById] isCardGen=true，保存待结算费用')
+          await savePendingGiveResultCharge(openId, cardId, {
+            cost: chatCost,
+            tokens,
+            conversationId: result.conversationId || '',
+            messageId: result.messageId || '',
+          })
+        }
+      } else {
+        console.log('[runChatJobById] 普通对话，开始扣费')
+        const applyResult = await applyBalanceChanges(openId, [{
+          type: 'chat',
+          delta: -chatCost,
+          tokens,
+          conversationId: result.conversationId || '',
+          cardId: cardId || '',
+          source: CHAT_PROVIDER,
+          meta: { messageId: result.messageId || '' },
+        }])
+        console.log('[runChatJobById] 扣费结果:', applyResult)
+        if (!applyResult.ok) {
+          console.error('[runChatJobById] 扣费失败:', applyResult.message)
+          await db.collection('chatJobs').doc(job._id).update({
+            data: { status: 'failed', error: applyResult.message || '扣费失败', updatedAt: db.serverDate() }
+          })
+          return { code: -1, message: applyResult.message || '扣费失败' }
+        }
+        if (cardId) {
+          console.log('[runChatJobById] 写入对话记录:', { cardId, requestId })
+          await upsertConversation(openId, cardId, query, result.answer || '', requestId, files)
+        }
+      }
+    } else {
+      console.log('[runChatJobById] isSync=true，跳过计费与对话记录')
+    }
+
+    // 写回结果
+    await db.collection('chatJobs').doc(job._id).update({
+      data: {
+        status: 'done',
+        answer: result.answer || '',
+        conversationId: result.conversationId || '',
+        messageId: result.messageId || '',
+        tokens,
+        cost: isCardGen ? 0 : chatCost,
+        updatedAt: db.serverDate(),
+      }
+    })
+
+    const totalElapsed = Date.now() - t0
+    console.log(`[runChatJobById] 任务成功完成，总耗时 ${totalElapsed}ms`, { jobId, tokens, chatCost })
+    finalizeStatus = 'done'
+    return { code: 0, message: '成功' }
+  } catch (err) {
+    console.error('[runChatJobById] 未捕获异常:', err && err.stack ? err.stack : err)
+    try {
+      await db.collection('chatJobs').doc(job._id).update({
+        data: { status: 'failed', error: err.message || String(err), updatedAt: db.serverDate() }
+      })
+    } catch (e) { /* ignore */ }
+    return { code: -1, message: err.message || String(err) }
+  } finally {
+    if (shouldFinalizeRequest) {
+      await finishConversationRequest(openId, cardId, requestId, finalizeStatus)
+    }
+  }
+}
+
+/**
+ * [pollChat] 前端轮询查询任务进度
+ * 若任务 pending/running 超过 90 秒，自动标记为 failed（防止悬空）
+ */
+async function pollChatJobById(event, openId) {
+  const { jobId } = event
+  if (!jobId) {
+    console.warn('[pollChatJobById] 缺少 jobId')
+    return { code: -1, message: '缺少 jobId' }
+  }
+
+  const res = await db.collection('chatJobs').where({ jobId, _openid: openId }).limit(1).get()
+  const job = res.data && res.data.length > 0 ? res.data[0] : null
+  if (!job) {
+    console.warn('[pollChatJobById] 任务不存在:', { jobId })
+    return { code: -1, message: '任务不存在' }
+  }
+
+  // 超时保护：pending/running 超 90 秒则自动失败
+  if (job.status === 'pending' || job.status === 'running') {
+    const createdMs = job.createdAt ? new Date(job.createdAt).getTime() : 0
+    const ageMs = createdMs ? Date.now() - createdMs : 0
+    console.log(`[pollChatJobById] 任务仍在进行中: status=${job.status}, 已等待 ${ageMs}ms`, { jobId })
+    if (createdMs && ageMs > 90000) {
+      console.error('[pollChatJobById] 任务超时（> 90s），强制标记 failed:', { jobId, ageMs })
+      try {
+        await db.collection('chatJobs').doc(job._id).update({
+          data: { status: 'failed', error: 'AI响应超时，请重试', updatedAt: db.serverDate() }
+        })
+      } catch (e) { /* ignore */ }
+      return {
+        code: 0,
+        data: { status: 'failed', error: 'AI响应超时，请重试' }
+      }
+    }
+  } else {
+    console.log(`[pollChatJobById] 返回终态: status=${job.status}`, {
+      jobId,
+      answerLen: typeof job.answer === 'string' ? job.answer.length : 0,
+      tokens: job.tokens || 0,
+      error: job.error || '',
+    })
+  }
+
+  return {
+    code: 0,
+    data: {
+      status: job.status,
+      answer: job.answer || '',
+      conversationId: job.conversationId || '',
+      messageId: job.messageId || '',
+      tokens: job.tokens || 0,
+      cost: job.cost || 0,
+      error: job.error || '',
     }
   }
 }
@@ -596,7 +965,7 @@ function httpPostSSE(url, body, headers) {
         'Content-Length': Buffer.byteLength(postData),
         'Accept': 'text/event-stream',
       },
-      timeout: 120000,
+      timeout: 55000,  // 留出 ~5 秒的云函数收尾时间，避免被 runtime 直接杀死
     }
 
     let fullAnswer = ''
