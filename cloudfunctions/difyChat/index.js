@@ -101,7 +101,6 @@ async function sendChatMessage(event, openId) {
 
   const isCardGen = isCardGenRequest(query)
   const isSync = isSyncRequest(query)
-  console.log('[Debug] Request type check:', { query: query.slice(0, 50), isCardGen, isSync })
   let shouldFinalizeRequest = false
   let finalizeStatus = 'failed'
 
@@ -226,7 +225,6 @@ async function sendChatMessage(event, openId) {
     if (isSync) {
       // Sync 消息：不扣费、不写入对话记录，仅同步角色卡信息到 Dify
       // 不调用 upsertConversation，不调用 applyBalanceChanges
-      console.log('[Sync] Skipping conversation upsert and billing for sync message', { query: query.slice(0, 50), cardId })
     } else if (isCardGen) {
       if (cardId) {
         await savePendingGiveResultCharge(openId, cardId, {

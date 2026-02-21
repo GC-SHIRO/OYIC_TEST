@@ -649,17 +649,19 @@ Page({
 
     _pendingSyncTimer = setInterval(async () => {
       if (this.data.isSending) return;
-      const { characterId: currentId } = this.data;
+      const { characterId: currentId, messages: currentMessages } = this.data;
       if (!currentId) return;
 
       const cloudMessages = await fetchConversationFromCloud(currentId);
-      const merged = finalizeStalePendingMessages(ensureWelcomeMessage(cloudMessages || []));
-      if (!sameMessageSnapshot(this.data.messages, merged)) {
-        this.setData({ messages: merged });
+      // 合并云端消息和本地消息，保留本地 pending 状态
+      const merged = mergeCloudMessagesWithLocal(cloudMessages || [], currentMessages);
+      const finalized = finalizeStalePendingMessages(ensureWelcomeMessage(merged));
+      if (!sameMessageSnapshot(this.data.messages, finalized)) {
+        this.setData({ messages: finalized });
         this.scrollToBottom();
       }
 
-      if (!hasAnyPendingMessage(merged)) {
+      if (!hasAnyPendingMessage(finalized)) {
         this.stopPendingSync();
       }
     }, 1800);
@@ -942,6 +944,42 @@ function ensureWelcomeMessage(messages: IMessage[]): IMessage[] {
     },
     ...normalized,
   ];
+}
+
+/**
+ * 合并云端消息和本地消息
+ * - 以本地消息为基础（保留 pending 状态）
+ * - 补充云端有但本地没有的消息
+ * - 用云端的非 pending 消息替换本地的 pending 消息（相同 requestId）
+ */
+function mergeCloudMessagesWithLocal(cloudMessages: IMessage[], localMessages: IMessage[]): IMessage[] {
+  const result = [...localMessages];
+  const localIds = new Set(localMessages.map(m => m.id));
+  const localRequestIds = new Map(localMessages.map(m => [m.requestId, m]));
+
+  for (const cloudMsg of cloudMessages) {
+    // 如果本地已有相同 ID 的消息，跳过
+    if (localIds.has(cloudMsg.id)) continue;
+
+    // 如果云端消息有 requestId，且本地有相同 requestId 的 pending 消息
+    if (cloudMsg.requestId) {
+      const localMsg = localRequestIds.get(cloudMsg.requestId);
+      if (localMsg && localMsg.pending && !cloudMsg.pending) {
+        // 用云端消息替换本地 pending 消息
+        const index = result.findIndex(m => m.id === localMsg.id);
+        if (index >= 0) {
+          result[index] = { ...cloudMsg };
+          continue;
+        }
+      }
+    }
+
+    // 否则将云端消息添加到结果中
+    result.push({ ...cloudMsg });
+  }
+
+  // 按时间戳排序
+  return result.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 }
 
 function looksLikeResultJson(content: string): boolean {
