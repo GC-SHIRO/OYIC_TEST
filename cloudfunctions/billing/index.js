@@ -26,10 +26,22 @@ exports.main = async (event, context) => {
             activity: billingConfig.ACTIVITY,
           }
         };
+      case 'config':
+        return {
+          code: 0,
+          message: 'ok',
+          data: {
+            CARD_GEN_COST: billingConfig.CARD_GEN_COST,
+            TOKEN_UNIT: billingConfig.TOKEN_UNIT,
+            TOKEN_COST: billingConfig.TOKEN_COST,
+          }
+        };
       case 'usage':
         return await getUsageLogs(openId, event);
       case 'shareReward':
         return await applyShareReward(openId);
+      case 'deduct':
+        return await deductBalance(openId, event);
       default:
         return { code: -1, message: `未知操作: ${action}` };
     }
@@ -199,6 +211,36 @@ async function applyBalanceChange(openId, change, userPatch) {
   } catch (err) {
     return { ok: false, message: err.message || String(err) };
   }
+}
+
+// 扣除余额（用于导出角色卡等操作）
+async function deductBalance(openId, event) {
+  const { amount, type, meta } = event;
+
+  if (!amount || amount <= 0) {
+    return { code: -1, message: '无效的扣费金额' };
+  }
+
+  const result = await applyBalanceChange(openId, {
+    type: type || 'deduct',
+    delta: -amount, // 扣除为负数
+    source: 'user',
+    meta: meta || {},
+  });
+
+  if (!result.ok) {
+    return { code: -1, message: result.message };
+  }
+
+  return {
+    code: 0,
+    message: '扣费成功',
+    data: {
+      balanceBefore: result.balanceBefore,
+      balanceAfter: result.balanceAfter,
+      deducted: amount,
+    }
+  };
 }
 
 function getStartOfDay(date) {

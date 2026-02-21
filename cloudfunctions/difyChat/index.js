@@ -100,10 +100,13 @@ async function sendChatMessage(event, openId) {
   }
 
   const isCardGen = isCardGenRequest(query)
+  const isSync = isSyncRequest(query)
+  console.log('[Debug] Request type check:', { query: query.slice(0, 50), isCardGen, isSync })
   let shouldFinalizeRequest = false
   let finalizeStatus = 'failed'
 
-  if (cardId && requestId) {
+  // Sync 消息不需要去重检查，直接处理
+  if (!isSync && cardId && requestId) {
     const requestState = await beginConversationRequest(openId, cardId, requestId)
     if (requestState.duplicate) {
       return { code: 1, message: '请求处理中，请勿重复提交' }
@@ -220,7 +223,11 @@ async function sendChatMessage(event, openId) {
     const tokens = result.tokens || 0
     const chatCost = calcChatCost(tokens)
 
-    if (isCardGen) {
+    if (isSync) {
+      // Sync 消息：不扣费、不写入对话记录，仅同步角色卡信息到 Dify
+      // 不调用 upsertConversation，不调用 applyBalanceChanges
+      console.log('[Sync] Skipping conversation upsert and billing for sync message', { query: query.slice(0, 50), cardId })
+    } else if (isCardGen) {
       if (cardId) {
         await savePendingGiveResultCharge(openId, cardId, {
           cost: chatCost,
@@ -690,6 +697,11 @@ function calcChatCost(tokens) {
 function isCardGenRequest(query) {
   if (!query) return false
   return query.trim().toLowerCase() === 'give_result'
+}
+
+function isSyncRequest(query) {
+  if (!query) return false
+  return query.trim() === 'Sync'
 }
 
 function pickTokens(metadata) {

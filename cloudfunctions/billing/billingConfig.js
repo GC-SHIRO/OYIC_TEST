@@ -1,8 +1,8 @@
 module.exports = {
   TOKEN_UNIT: 10, // 统计粒度：每10 tokens算1单位
   TOKEN_COST: 1,  // 每单位消耗1点
-  CARD_GEN_COST: 80,
-  REGISTER_BONUS: 120,
+  CARD_GEN_COST: 300, // 生成角色卡消耗300点
+  REGISTER_BONUS: 6000, // 注册奖励6000点
   SHARE_DAILY_BONUS: 120,
   RECHARGE_RATE: 1000, // 充值1元=1000点
   RECHARGE_PACKS: [

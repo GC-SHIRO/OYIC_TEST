@@ -699,10 +699,10 @@ Page({
     });
   },
 
-  // 导出作品 - 用于已完成状态，显示功能开发中弹窗
-  onExport() {
+  // 导出作品 - 用于已完成状态，检查余额并扣费后生成图片
+  async onExport() {
     const { character, galleryImages, loading } = this.data;
-    
+
     if (loading) {
       wx.showToast({ title: '数据加载中', icon: 'none' });
       return;
@@ -713,10 +713,43 @@ Page({
       return;
     }
 
+    // 从云端获取配置
+    const configRes = await this.getBillingConfig();
+    if (!configRes.success) {
+      wx.showToast({ title: '获取配置失败', icon: 'none' });
+      return;
+    }
+    const CARD_GEN_COST = configRes.CARD_GEN_COST || 300;
+
+    // 检查余额是否足够
+    const balanceCheck = await this.checkBalance(CARD_GEN_COST);
+    if (!balanceCheck.success) {
+      wx.showModal({
+        title: '余额不足',
+        content: `导出角色卡需要 ${CARD_GEN_COST} 创作点，当前余额不足。是否前往充值？`,
+        confirmText: '去充值',
+        cancelText: '取消',
+        success: (res) => {
+          if (res.confirm) {
+            wx.navigateTo({ url: '/pages/payment/payment' });
+          }
+        },
+      });
+      return;
+    }
+
     wx.showLoading({ title: '生成图片中...', mask: true });
 
     setTimeout(async () => {
       try {
+        // 扣费
+        const deductResult = await this.deductBalance(CARD_GEN_COST, character.name);
+        if (!deductResult.success) {
+          wx.hideLoading();
+          wx.showToast({ title: '扣费失败，请重试', icon: 'none' });
+          return;
+        }
+
         const filePath = await exportCharacterCard(
           'exportCanvas',
           this,
@@ -728,7 +761,7 @@ Page({
 
         wx.showModal({
           title: '导出成功',
-          content: '是否保存到手机相册？',
+          content: `已扣除 ${CARD_GEN_COST} 创作点，是否保存到手机相册？`,
           confirmText: '保存',
           cancelText: '取消',
           success: async (res) => {
@@ -743,6 +776,71 @@ Page({
         wx.showToast({ title: '导出失败，请重试', icon: 'none' });
       }
     }, 100);
+  },
+
+  // 获取计费配置
+  async getBillingConfig(): Promise<{ success: boolean; CARD_GEN_COST?: number }> {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'billing',
+        data: { action: 'config' },
+      });
+
+      const result = res.result as any;
+      if (result.code !== 0 || !result.data) {
+        return { success: false };
+      }
+
+      return {
+        success: true,
+        CARD_GEN_COST: result.data.CARD_GEN_COST,
+      };
+    } catch (err) {
+      console.error('获取计费配置失败:', err);
+      return { success: false };
+    }
+  },
+
+  // 检查余额是否足够
+  async checkBalance(requiredAmount: number): Promise<{ success: boolean; balance?: number }> {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'billing',
+        data: { action: 'overview' },
+      });
+
+      const result = res.result as any;
+      if (result.code !== 0 || !result.data) {
+        return { success: false };
+      }
+
+      const balance = Number(result.data.balance ?? 0);
+      return { success: balance >= requiredAmount, balance };
+    } catch (err) {
+      console.error('获取余额失败:', err);
+      return { success: false };
+    }
+  },
+
+  // 扣除余额
+  async deductBalance(amount: number, characterName: string): Promise<{ success: boolean }> {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'billing',
+        data: {
+          action: 'deduct',
+          amount,
+          type: 'export_card',
+          meta: { characterName },
+        },
+      });
+
+      const result = res.result as any;
+      return { success: result.code === 0 };
+    } catch (err) {
+      console.error('扣费失败:', err);
+      return { success: false };
+    }
   },
 
 });
