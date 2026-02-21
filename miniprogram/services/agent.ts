@@ -48,41 +48,96 @@ export async function chatWithDify(
   requestId?: string,
   images?: string[], // 新增参数，图片 fileID 列表
 ): Promise<IAgentResponse> {
+  // ===== 异步任务 + 轮询模式（解决云函数 60 秒超时问题）=====
+  // 1. startChat: 快速创建任务（< 1 秒），立即返回 jobId
+  // 2. runJob:    fire-and-forget 触发实际 Dify 调用（独享 60 秒）
+  // 3. pollChat:  每 2 秒轮询结果，直到完成或超时
   try {
-    const res = await (wx.cloud.callFunction as any)({
+    // Step 1: 创建任务
+    const startRes = await (wx.cloud.callFunction as any)({
       name: 'difyChat',
       data: {
-        action: 'chat',
+        action: 'startChat',
         query,
         conversationId: conversationId || '',
         cardId: cardId || '',
         requestId: requestId || '',
-        files: images && images.length > 0 ? images : undefined, // 传递 fileID
+        files: images && images.length > 0 ? images : undefined,
       },
-      timeout: 120000, // 客户端等待 120 秒
+      timeout: 15000,
     });
 
-    const result = res.result as any;
-
-    console.log('调用结果:', JSON.stringify(result));
-
-    if (result.code === 0 && result.data) {
-      return {
-        success: true,
-        message: result.data.answer || '',
-        conversationId: result.data.conversationId || '',
-        data: result.data,
-      };
-    } else {
-      console.log('调用失败:', result.message || '未知错误', result.error || '');
-      return {
-        success: false,
-        message: result.message || '调用失败',
-        error: result.error || result.message,
-      };
+    const startResult = startRes.result as any;
+    if (startResult.code === 1) {
+      // 去重：任务已在处理中
+      return { success: false, message: startResult.message || '请求处理中，请勿重复提交' };
     }
+    if (!startResult.data?.jobId) {
+      console.error('startChat 返回无效:', startResult);
+      return { success: false, message: startResult.message || '创建任务失败', error: startResult.error };
+    }
+
+    const jobId: string = startResult.data.jobId;
+    console.log('chatWithDify: job created', jobId);
+
+    // Step 2: fire-and-forget 触发 runJob（不 await，云函数在服务端独立运行）
+    (wx.cloud.callFunction as any)({
+      name: 'difyChat',
+      data: { action: 'runJob', jobId },
+      timeout: 65000,
+    }).catch((e: any) => {
+      console.warn('runJob fire-and-forget error (non-fatal):', e?.message || e);
+    });
+
+    // Step 3: 轮询，最多等待 150 秒（75 次 × 2 秒）
+    const MAX_POLLS = 75;
+    const POLL_INTERVAL_MS = 2000;
+
+    for (let i = 0; i < MAX_POLLS; i++) {
+      await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+      let pollResult: any;
+      try {
+        const pollRes = await (wx.cloud.callFunction as any)({
+          name: 'difyChat',
+          data: { action: 'pollChat', jobId },
+          timeout: 10000,
+        });
+        pollResult = (pollRes.result as any)?.data;
+      } catch (e: any) {
+        console.warn('pollChat 请求异常，继续重试:', e?.message || e);
+        continue;
+      }
+
+      if (!pollResult) continue;
+
+      const status: string = pollResult.status;
+      console.log(`chatWithDify poll[${i + 1}/${MAX_POLLS}]: status=${status}`);
+
+      if (status === 'done') {
+        return {
+          success: true,
+          message: pollResult.answer || '',
+          conversationId: pollResult.conversationId || '',
+          data: pollResult,
+        };
+      } else if (status === 'failed') {
+        return {
+          success: false,
+          message: pollResult.error || 'AI处理失败，请重试',
+          error: pollResult.error,
+        };
+      }
+      // pending / running → 继续等待
+    }
+
+    return {
+      success: false,
+      message: 'AI响应超时，请稍后重试',
+      error: 'poll_timeout',
+    };
   } catch (error: any) {
-    console.error('Dify 调用失败:', error);
+    console.error('chatWithDify 异常:', error);
     return {
       success: false,
       message: '网络异常，请稍后重试',
