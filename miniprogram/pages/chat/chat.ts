@@ -31,12 +31,15 @@ const PENDING_TEXTS = [
 let _typewriterTimer: any = null;
 let _typewriterFullText = '';
 let _typewriterMsgIndex = -1;
+let _typewriterMsgId = ''; // 正在打字的消息ID
 let _pendingBlockModalShowing = false;
 let _pendingSyncTimer: any = null;
 let _exitGiveResultInFlight = false;
 let _exitGiveResultForCard = '';
 let _pendingTextTimer: any = null;
 let _currentPendingTextIndex = 0;
+let _isTypewriting = false; // 是否正在打字机效果中
+let _messageSequence = 0; // 消息序号生成器
 
 Page({
   data: {
@@ -208,6 +211,7 @@ Page({
         animate: true,
         requestId,
         userId: getCurrentUserId(),
+        sequence: getNextSequence(),
       };
 
       const aiPlaceholder: IMessage = {
@@ -220,6 +224,7 @@ Page({
         pendingText: PENDING_TEXTS[0],
         requestId,
         userId: 'ai',
+        sequence: getNextSequence(),
       };
 
       const updatedMessages = [...messages, userMessage, aiPlaceholder];
@@ -336,6 +341,7 @@ Page({
             images: fileIDs,
             timestamp: Date.now(),
             userId: getCurrentUserId(),
+            sequence: getNextSequence(),
           };
 
           const aiPlaceholder: IMessage = {
@@ -348,6 +354,7 @@ Page({
             pendingText: '正在分析图片',
             requestId,
             userId: 'ai',
+            sequence: getNextSequence(),
           };
 
           const updatedMessages = [...messages, userMessage, aiPlaceholder];
@@ -405,19 +412,22 @@ Page({
 
     _pendingSyncTimer = setInterval(async () => {
       if (this.data.isSending) return;
+      // 打字机效果进行中时暂停同步，避免消息被覆盖
+      if (_isTypewriting) return;
       const { characterId: currentId } = this.data;
       if (!currentId) return;
 
       try {
         const cloudMessages = await fetchConversationFromCloud(currentId);
-        // 直接用云端消息替换本地消息（云端为准）
+        // 使用智能合并，保留本地更完整的内容
         const finalized = finalizeStalePendingMessages(ensureWelcomeMessage(cloudMessages || []));
-        if (!sameMessageSnapshot(this.data.messages, finalized)) {
-          this.setData({ messages: finalized });
+        const merged = smartMergeMessages(this.data.messages, finalized);
+        if (!sameMessageSnapshot(this.data.messages, merged)) {
+          this.setData({ messages: merged });
           this.scrollToBottom();
         }
 
-        if (!hasAnyPendingMessage(finalized)) {
+        if (!hasAnyPendingMessage(merged)) {
           this.stopPendingSync();
         }
       } catch (err) {
@@ -441,12 +451,17 @@ Page({
 
     _typewriterFullText = fullText;
     _typewriterMsgIndex = messageIndex;
+    _isTypewriting = true;
+    const msg = this.data.messages[messageIndex];
+    _typewriterMsgId = msg?.id || '';
     let currentIndex = 0;
 
     const updateMessage = () => {
       if (currentIndex >= fullText.length) {
         clearInterval(_typewriterTimer);
         _typewriterTimer = null;
+        _isTypewriting = false;
+        _typewriterMsgId = '';
         this.saveConversation();
         return;
       }
@@ -465,9 +480,11 @@ Page({
     if (_typewriterTimer && _typewriterMsgIndex >= 0) {
       clearInterval(_typewriterTimer);
       _typewriterTimer = null;
+      _isTypewriting = false;
       this.setData({
         [`messages[${_typewriterMsgIndex}].content`]: _typewriterFullText,
       });
+      _typewriterMsgId = '';
     }
   },
 
@@ -577,7 +594,7 @@ Page({
   onPreviewImage(e: WechatMiniprogram.TouchEvent) {
     const url = e.currentTarget.dataset.url;
     const allImages = this.data.messages
-      .filter((m) => m.images?.length > 0)
+      .filter((m) => m.images && m.images.length > 0)
       .flatMap((m) => m.images || []);
     wx.previewImage({ current: url, urls: allImages });
   },
@@ -736,7 +753,15 @@ Page({
 // ==================== 工具函数 ====================
 
 function generateRequestId(): string {
-  return `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  // 使用更高精度的随机数，避免并发时ID冲突
+  const time = Date.now();
+  const random = Math.random().toString(36).slice(2, 11);
+  const random2 = Math.random().toString(36).slice(2, 5);
+  return `${time}_${random}_${random2}`;
+}
+
+function getNextSequence(): number {
+  return ++_messageSequence;
 }
 
 function hasRecentPendingMessage(messages: IMessage[]): boolean {
@@ -754,11 +779,29 @@ function hasAnyPendingMessage(messages: IMessage[]): boolean {
 
 function sameMessageSnapshot(a: IMessage[], b: IMessage[]): boolean {
   if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i].id !== b[i].id) return false;
-    if (a[i].pending !== b[i].pending) return false;
-    if ((a[i].content || '') !== (b[i].content || '')) return false;
+
+  // 创建ID到消息的映射，避免依赖数组顺序
+  const bMap = new Map<string, IMessage>();
+  for (const msg of b) {
+    if (msg?.id) bMap.set(msg.id, msg);
   }
+
+  for (const msgA of a) {
+    if (!msgA?.id) continue;
+    const msgB = bMap.get(msgA.id);
+    if (!msgB) return false; // b中缺少这条消息
+
+    // 比较关键字段
+    if (msgA.pending !== msgB.pending) return false;
+    if ((msgA.content || '') !== (msgB.content || '')) return false;
+    if ((msgA.role || '') !== (msgB.role || '')) return false;
+
+    // 比较图片
+    const aImages = (msgA.images || []).join(',');
+    const bImages = (msgB.images || []).join(',');
+    if (aImages !== bImages) return false;
+  }
+
   return true;
 }
 
@@ -787,16 +830,74 @@ function ensureWelcomeMessage(messages: IMessage[]): IMessage[] {
 }
 
 function mergeMessages(cloudMessages: IMessage[], localMessages: IMessage[]): IMessage[] {
-  // 以云端消息为准，但保留本地 pending 状态
-  const result = [...cloudMessages];
-  const cloudIds = new Set(cloudMessages.map((m) => m.id));
+  // 使用智能合并策略
+  return smartMergeMessages(localMessages, cloudMessages);
+}
 
-  // 添加本地有但云端没有的消息（通常是 pending 消息）
-  for (const localMsg of localMessages) {
-    if (!cloudIds.has(localMsg.id)) {
-      result.push(localMsg);
+/**
+ * 智能合并本地和云端消息
+ * 策略：
+ * 1. 以云端消息为基础（云端是持久化数据源）
+ * 2. 对于相同ID的消息，保留内容更完整的版本（content长度更长）
+ * 3. 本地独有的消息（如pending消息）保留
+ * 4. 打字机效果进行中的消息优先使用本地版本
+ */
+function smartMergeMessages(localMessages: IMessage[], cloudMessages: IMessage[]): IMessage[] {
+  const result = new Map<string, IMessage>();
+  const now = Date.now();
+
+  // 先添加所有云端消息
+  for (const msg of cloudMessages) {
+    if (msg?.id) {
+      result.set(msg.id, msg);
     }
   }
 
-  return result.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  // 合并本地消息
+  for (const localMsg of localMessages) {
+    if (!localMsg?.id) continue;
+
+    const existing = result.get(localMsg.id);
+
+    if (!existing) {
+      // 本地独有的消息，直接添加
+      result.set(localMsg.id, localMsg);
+    } else {
+      // 相同ID的消息，选择更完整的版本
+      const localContent = localMsg.content || '';
+      const cloudContent = existing.content || '';
+      const localHasImages = Array.isArray(localMsg.images) && localMsg.images.length > 0;
+      const cloudHasImages = Array.isArray(existing.images) && existing.images.length > 0;
+
+      // 判断哪个版本更完整
+      const shouldUseLocal =
+        // 本地内容更长
+        localContent.length > cloudContent.length ||
+        // 本地有图片而云端没有
+        (localHasImages && !cloudHasImages) ||
+        // 本地是pending状态且未超时（还在等待中）
+        (localMsg.pending && localMsg.timestamp && now - localMsg.timestamp < 120000) ||
+        // 正在打字机效果中的消息
+        (localMsg.id === _typewriterMsgId && _isTypewriting);
+
+      if (shouldUseLocal) {
+        result.set(localMsg.id, localMsg);
+      }
+    }
+  }
+
+  // 按sequence排序，如果没有sequence则按timestamp排序
+  return Array.from(result.values()).sort((a, b) => {
+    // 优先使用sequence排序
+    const seqA = a.sequence || 0;
+    const seqB = b.sequence || 0;
+    if (seqA !== seqB) return seqA - seqB;
+
+    // sequence相同时，按timestamp排序
+    const timeDiff = (a.timestamp || 0) - (b.timestamp || 0);
+    if (timeDiff !== 0) return timeDiff;
+
+    // 最后按id排序确保稳定
+    return (a.id || '').localeCompare(b.id || '');
+  });
 }

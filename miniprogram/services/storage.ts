@@ -22,6 +22,7 @@ export interface IMessage {
   pendingText?: string; // AI思考中显示的文本
   requestId?: string;
   userId?: string;
+  sequence?: number; // 消息序号，用于确保排序正确
 }
 
 // 本地缓存键名前缀

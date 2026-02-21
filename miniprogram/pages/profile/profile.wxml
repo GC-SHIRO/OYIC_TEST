@@ -33,7 +33,7 @@
   </view>
   
   <!-- 内容区域 -->
-  <scroll-view class="content-container" scroll-y enhanced show-scrollbar="{{false}}">
+  <scroll-view class="content-container" scroll-y enhanced show-scrollbar="{{false}}" enable-flex>
     <!-- 余额卡片 -->
     <view class="balance-card" bindtap="onMenuTap" data-type="recharge">
       <view class="balance-label">当前余额</view>
@@ -49,7 +49,7 @@
       <view class="section-header">
         <view class="section-title">🎨 我的作品</view>
       </view>
-      <scroll-view class="works-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+      <scroll-view class="works-scroll" scroll-x enhanced show-scrollbar="{{false}}" enable-flex>
         <view 
           wx:for="{{works}}" 
           wx:key="id"

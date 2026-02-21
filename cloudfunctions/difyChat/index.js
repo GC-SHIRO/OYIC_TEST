@@ -757,6 +757,11 @@ async function upsertConversation(openId, characterId, userText, aiText, request
     return
   }
 
+  // 计算sequence，确保消息顺序正确
+  const maxSequence = messages.reduce((max, msg) => Math.max(max, msg.sequence || 0), 0)
+  const userSequence = maxSequence + 1
+  const aiSequence = maxSequence + 2
+
   const userMsg = {
     id: userMsgId,
     role: 'user',
@@ -764,6 +769,7 @@ async function upsertConversation(openId, characterId, userText, aiText, request
     timestamp: now,
     userId: openId,
     requestId: requestId || '',
+    sequence: userSequence,
   }
 
   const aiMsg = {
@@ -773,6 +779,7 @@ async function upsertConversation(openId, characterId, userText, aiText, request
     timestamp: now + 1,
     userId: 'ai',
     requestId: requestId || '',
+    sequence: aiSequence,
   }
 
   // 如果前端传入 files（可能为 cloud fileID 列表或包含 url 的对象），把它们保存到 user 消息中
