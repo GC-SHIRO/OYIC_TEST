@@ -818,3 +818,11 @@
 .save-tip--readonly {
   bottom: 72rpx;
 }
+
+.export-canvas {
+  position: fixed;
+  left: -9999rpx;
+  top: -9999rpx;
+  width: 1500rpx;
+  height: 3000rpx;
+}

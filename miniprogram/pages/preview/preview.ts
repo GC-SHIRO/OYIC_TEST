@@ -6,6 +6,7 @@ import type {
 } from '../../types/character';
 import { getCharacter, saveCharacter, fetchCharacterFromCloud, PLACEHOLDER_IMAGE } from '../../services/storage';
 import { uploadImagesToCloud } from '../../services/image';
+import { exportCharacterCard, saveImageToAlbum } from '../../services/exportImage';
 
 // 可编辑的 section 标识
 type EditSectionKey =
@@ -700,12 +701,48 @@ Page({
 
   // 导出作品 - 用于已完成状态，显示功能开发中弹窗
   onExport() {
-    wx.showModal({
-      title: '提示',
-      content: '功能开发中',
-      showCancel: false,
-      confirmText: '知道了',
-    });
+    const { character, galleryImages, loading } = this.data;
+    
+    if (loading) {
+      wx.showToast({ title: '数据加载中', icon: 'none' });
+      return;
+    }
+
+    if (!character || !character.name) {
+      wx.showToast({ title: '角色数据不完整', icon: 'none' });
+      return;
+    }
+
+    wx.showLoading({ title: '生成图片中...', mask: true });
+
+    setTimeout(async () => {
+      try {
+        const filePath = await exportCharacterCard(
+          'exportCanvas',
+          this,
+          character,
+          galleryImages || []
+        );
+
+        wx.hideLoading();
+
+        wx.showModal({
+          title: '导出成功',
+          content: '是否保存到手机相册？',
+          confirmText: '保存',
+          cancelText: '取消',
+          success: async (res) => {
+            if (res.confirm) {
+              await saveImageToAlbum(filePath);
+            }
+          },
+        });
+      } catch (err) {
+        wx.hideLoading();
+        console.error('导出失败:', err);
+        wx.showToast({ title: '导出失败，请重试', icon: 'none' });
+      }
+    }, 100);
   },
 
 });

@@ -330,4 +330,7 @@
   <view class="save-tip {{saveTipVisible ? 'save-tip--show' : ''}} {{readonly ? 'save-tip--readonly' : ''}}">
     {{saveTipText}}
   </view>
+
+  <!-- 导出用的隐藏 Canvas -->
+  <canvas type="2d" id="exportCanvas" class="export-canvas"></canvas>
 </view>
