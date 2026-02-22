@@ -305,7 +305,7 @@ Page({
   // 选择图片
   async onChooseImage() {
     wx.chooseMedia({
-      count: 3,
+      count: 1,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
       success: async (res) => {
