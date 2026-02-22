@@ -115,4 +115,11 @@
       <t-icon name="arrow-up" size="36rpx" color="#fff" />
     </view>
   </view>
+
+  <!-- 隐藏的 canvas 用于图片压缩 -->
+  <canvas 
+    type="2d" 
+    id="compressCanvas" 
+    style="position:absolute;top:-9999px;left:-9999px;width:300px;height:300px;"
+  />
 </view>

@@ -12,7 +12,7 @@ import {
 } from '../../services/storage';
 import { getLocalUserInfo } from '../../services/user';
 import { chatWithDify, generateCharacterCard } from '../../services/agent';
-import { uploadImagesToCloud } from '../../services/image';
+import { uploadImagesToCloud, compressImage } from '../../services/image';
 
 const WELCOME_CONTENT = '你好！我是你的角色创作助手\n\n告诉我你的想法吧！可以是角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~';
 const DIFY_ERROR_TEXT = 'AI服务出现错误，请联系管理员处理';
@@ -309,11 +309,16 @@ Page({
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
       success: async (res) => {
-        const tempFilePaths = res.tempFiles.map((file) => file.tempFilePath);
+        const tempFilePath = res.tempFiles[0]?.tempFilePath;
+        if (!tempFilePath) return;
+        
         wx.showLoading({ title: '上传中...' });
 
         try {
-          const fileIDs = await uploadImagesToCloud(tempFilePaths);
+          const originalFileID = await uploadImagesToCloud([tempFilePath]);
+          
+          const compressedPath = await compressImage(tempFilePath, 200);
+          const compressedFileIDs = await uploadImagesToCloud([compressedPath], 'chat_images_compressed');
 
           // 首次上传时创建角色卡草稿
           let { messages, difyConversationId, characterId } = this.data;
@@ -329,12 +334,12 @@ Page({
 
           const requestId = generateRequestId();
 
-          // 添加用户消息和 AI 占位消息到本地
+          // 添加用户消息和 AI 占位消息到本地（使用原图）
           const userMessage: IMessage = {
             id: `user_${requestId}`,
             role: 'user',
             content: '参考图片',
-            images: fileIDs,
+            images: originalFileID,
             timestamp: Date.now(),
             userId: getCurrentUserId(),
             sequence: getNextSequence(),
@@ -361,8 +366,8 @@ Page({
           storageSaveConversation(activeCardId, updatedMessages);
           this.scrollToBottom();
 
-          // 调用 Dify API
-          const response = await chatWithDify('图片参考', difyConversationId, activeCardId, requestId, fileIDs);
+          // 调用 Dify API（使用压缩图）
+          const response = await chatWithDify('图片参考', difyConversationId, activeCardId, requestId, compressedFileIDs);
 
           // 更新 conversationId
           if (response.success && response.conversationId && response.conversationId !== difyConversationId) {
