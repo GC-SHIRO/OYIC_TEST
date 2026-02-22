@@ -427,35 +427,42 @@ function toTimestamp(val: any): number {
 }
 
 function mergeConversationMessages(cloudMessages: IMessage[], localMessages: IMessage[]): IMessage[] {
-  const merged = new Map<string, IMessage>();
+  const result = new Map<string, IMessage>();
+  const cloudByRequestId = new Map<string, IMessage>();
 
-  const upsert = (message: IMessage) => {
-    if (!message || !message.id) return;
-    const existing = merged.get(message.id);
+  // 建立云端消息索引
+  for (const msg of cloudMessages) {
+    if (msg?.id) result.set(msg.id, msg);
+    if (msg?.requestId) cloudByRequestId.set(msg.requestId, msg);
+  }
+
+  // 合并本地消息
+  for (const localMsg of localMessages) {
+    if (!localMsg?.id) continue;
+
+    // 如果本地消息有requestId且是pending，尝试匹配云端消息
+    if (localMsg.requestId && localMsg.pending && cloudByRequestId.has(localMsg.requestId)) {
+      const cloudMsg = cloudByRequestId.get(localMsg.requestId)!;
+      if (!cloudMsg.pending) continue; // 云端已完成，跳过本地pending
+    }
+
+    const existing = result.get(localMsg.id);
     if (!existing) {
-      merged.set(message.id, message);
-      return;
+      result.set(localMsg.id, localMsg);
+    } else if (localMsg.pending && !existing.pending) {
+      // 云端已完成，保留云端版本
+      continue;
+    } else if ((localMsg.content?.length || 0) > (existing.content?.length || 0)) {
+      result.set(localMsg.id, localMsg);
     }
+  }
 
-    if (existing.pending && !message.pending) {
-      merged.set(message.id, message);
-      return;
-    }
-
-    if (!existing.pending && message.pending) {
-      return;
-    }
-
-    if ((message.content || '').length > (existing.content || '').length) {
-      merged.set(message.id, message);
-    }
-  };
-
-  cloudMessages.forEach(upsert);
-  localMessages.forEach(upsert);
-
-  return Array.from(merged.values())
-    .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  return Array.from(result.values())
+    .sort((a, b) => {
+      const seqDiff = (a.sequence || 0) - (b.sequence || 0);
+      if (seqDiff !== 0) return seqDiff;
+      return (a.timestamp || 0) - (b.timestamp || 0);
+    });
 }
 
 // ================================================================
