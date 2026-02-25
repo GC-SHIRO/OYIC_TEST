@@ -84,6 +84,7 @@
     <!-- 上传按钮 -->
     <view class="action-btn" bindtap="onChooseImage">
       <t-icon name="add" size="40rpx" color="#666" />
+      <view class="image-badge" wx:if="{{pendingImage}}">1</view>
     </view>
     
     <!-- 输入框 -->

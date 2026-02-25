@@ -49,6 +49,7 @@ Page({
     scrollTop: 0,
     keyboardHeight: 0,
     userAvatar: '',
+    pendingImage: null as { path: string, fileID?: string, compressedPath?: string } | null,
   },
 
   onLoad(options: { characterId?: string }) {
@@ -148,8 +149,9 @@ Page({
 
   // 发送文字消息
   async onSend() {
-    const { inputValue, messages, difyConversationId, characterId, isSending } = this.data;
-    if (!inputValue.trim()) return;
+    const { inputValue, messages, difyConversationId, characterId, isSending, pendingImage } = this.data;
+    
+    if (!inputValue.trim() && !pendingImage) return;
     if (isSending) {
       wx.showToast({ title: '上一条消息处理中', icon: 'none' });
       return;
@@ -180,7 +182,7 @@ Page({
 
     this.finishTypewriter();
 
-    const userText = inputValue.trim();
+    const userText = inputValue.trim() || '参考图片';
     const requestId = generateRequestId();
 
     try {
@@ -195,47 +197,95 @@ Page({
         activeCardId = draft;
       }
 
-      // 添加用户消息和 AI 占位消息到本地（仅用于显示）
-      const userMessage: IMessage = {
-        id: `user_${requestId}`,
-        role: 'user',
-        content: userText,
-        timestamp: Date.now(),
-        animate: true,
-        requestId,
-        userId: getCurrentUserId(),
-        sequence: getNextSequence(),
-      };
+      let userMessage: IMessage;
+      let aiPlaceholder: IMessage;
+      let compressedFileIDs: string[] | undefined;
 
-      const aiPlaceholder: IMessage = {
-        id: `ai_${requestId}`,
-        role: 'ai',
-        content: '',
-        timestamp: Date.now(),
-        animate: true,
-        pending: true,
-        pendingText: PENDING_TEXTS[0],
-        requestId,
-        userId: 'ai',
-        sequence: getNextSequence(),
-      };
+      // 如果有待发送的图片，先上传
+      if (pendingImage) {
+        wx.showLoading({ title: '上传中...' });
+        
+        const originalFileID = await uploadImagesToCloud([pendingImage.path]);
+        
+        let imageToUpload = pendingImage.path;
+        if (pendingImage.compressedPath) {
+          imageToUpload = pendingImage.compressedPath;
+        }
+        compressedFileIDs = await uploadImagesToCloud([imageToUpload], 'chat_images_compressed');
+
+        userMessage = {
+          id: `user_${requestId}`,
+          role: 'user',
+          content: userText,
+          images: originalFileID,
+          timestamp: Date.now(),
+          animate: true,
+          requestId,
+          userId: getCurrentUserId(),
+          sequence: getNextSequence(),
+        };
+
+        aiPlaceholder = {
+          id: `ai_${requestId}`,
+          role: 'ai',
+          content: '',
+          timestamp: Date.now(),
+          animate: true,
+          pending: true,
+          pendingText: '正在分析图片',
+          requestId,
+          userId: 'ai',
+          sequence: getNextSequence(),
+        };
+        
+        wx.hideLoading();
+      } else {
+        userMessage = {
+          id: `user_${requestId}`,
+          role: 'user',
+          content: userText,
+          timestamp: Date.now(),
+          animate: true,
+          requestId,
+          userId: getCurrentUserId(),
+          sequence: getNextSequence(),
+        };
+
+        aiPlaceholder = {
+          id: `ai_${requestId}`,
+          role: 'ai',
+          content: '',
+          timestamp: Date.now(),
+          animate: true,
+          pending: true,
+          pendingText: PENDING_TEXTS[0],
+          requestId,
+          userId: 'ai',
+          sequence: getNextSequence(),
+        };
+      }
 
       const updatedMessages = [...messages, userMessage, aiPlaceholder];
       this.setData({
         messages: updatedMessages,
         inputValue: '',
+        pendingImage: null,
       });
       storageSaveConversation(activeCardId, updatedMessages);
       this.scrollToBottom();
 
       // 启动思考中文本轮播
-      this.startPendingTextRotation(aiPlaceholder.id);
+      if (!pendingImage) {
+        this.startPendingTextRotation(aiPlaceholder.id);
+      }
 
       // 调用 Dify API
-      const response = await chatWithDify(userText, difyConversationId, activeCardId, requestId);
+      const response = await chatWithDify(userText, difyConversationId, activeCardId, requestId, compressedFileIDs);
 
       // 停止思考中文本轮播
-      this.stopPendingTextRotation();
+      if (!pendingImage) {
+        this.stopPendingTextRotation();
+      }
 
       if (response.success && response.message) {
         // 更新 conversationId
@@ -257,7 +307,7 @@ Page({
         if (msgIndex >= 0) {
           this.setData({
             [`messages[${msgIndex}].pending`]: false,
-            [`messages[${msgIndex}].content`]: DIFY_ERROR_TEXT,
+            [`messages[${msgIndex}].content`]: pendingImage ? 'AI服务处理图片失败' : DIFY_ERROR_TEXT,
             [`messages[${msgIndex}].transient`]: true,
           });
           storageSaveConversation(activeCardId, this.data.messages);
@@ -304,6 +354,27 @@ Page({
 
   // 选择图片
   async onChooseImage() {
+    const { pendingImage } = this.data;
+    
+    if (pendingImage) {
+      wx.showActionSheet({
+        itemList: ['重新选择图片', '取消选择'],
+        success: (res) => {
+          if (res.tapIndex === 0) {
+            this.doChooseImage();
+          } else if (res.tapIndex === 1) {
+            this.setData({ pendingImage: null });
+          }
+        }
+      });
+      return;
+    }
+    
+    this.doChooseImage();
+  },
+
+  // 执行选择图片
+  async doChooseImage() {
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
@@ -311,94 +382,23 @@ Page({
       success: async (res) => {
         const tempFilePath = res.tempFiles[0]?.tempFilePath;
         if (!tempFilePath) return;
-        
-        wx.showLoading({ title: '上传中...' });
+
+        wx.showLoading({ title: '处理中...' });
 
         try {
-          const originalFileID = await uploadImagesToCloud([tempFilePath]);
-          
           const compressedPath = await compressImage(tempFilePath, 200);
-          const compressedFileIDs = await uploadImagesToCloud([compressedPath], 'chat_images_compressed');
-
-          // 首次上传时创建角色卡草稿
-          let { messages, difyConversationId, characterId } = this.data;
-          let activeCardId = characterId;
-          if (!activeCardId) {
-            const draft = await this.createCharacterDraft();
-            if (!draft) {
-              wx.hideLoading();
-              return;
-            }
-            activeCardId = draft;
-          }
-
-          const requestId = generateRequestId();
-
-          // 添加用户消息和 AI 占位消息到本地（使用原图）
-          const userMessage: IMessage = {
-            id: `user_${requestId}`,
-            role: 'user',
-            content: '参考图片',
-            images: originalFileID,
-            timestamp: Date.now(),
-            userId: getCurrentUserId(),
-            sequence: getNextSequence(),
-          };
-
-          const aiPlaceholder: IMessage = {
-            id: `ai_${requestId}`,
-            role: 'ai',
-            content: '',
-            timestamp: Date.now(),
-            animate: true,
-            pending: true,
-            pendingText: '正在分析图片',
-            requestId,
-            userId: 'ai',
-            sequence: getNextSequence(),
-          };
-
-          const updatedMessages = [...messages, userMessage, aiPlaceholder];
+          
           this.setData({
-            messages: updatedMessages,
-            scrollToMessage: `msg-${aiPlaceholder.id}`,
+            pendingImage: {
+              path: tempFilePath,
+              compressedPath: compressedPath,
+            }
           });
-          storageSaveConversation(activeCardId, updatedMessages);
-          this.scrollToBottom();
-
-          // 调用 Dify API（使用压缩图）
-          const response = await chatWithDify('图片参考', difyConversationId, activeCardId, requestId, compressedFileIDs);
-
-          // 更新 conversationId
-          if (response.success && response.conversationId && response.conversationId !== difyConversationId) {
-            this.setData({ difyConversationId: response.conversationId });
-            this.updateCardConversationId(response.conversationId);
-          }
-
-          // 更新 AI 消息
-          const msgIndex = this.findMessageIndexById(aiPlaceholder.id);
-          if (response.success && response.message) {
-            if (msgIndex >= 0) {
-              this.setData({ [`messages[${msgIndex}].pending`]: false });
-              storageSaveConversation(activeCardId, this.data.messages);
-              this.streamDisplayMessage(response.message, msgIndex);
-            }
-          } else {
-            if (msgIndex >= 0) {
-              this.setData({
-                [`messages[${msgIndex}].pending`]: false,
-                [`messages[${msgIndex}].content`]: 'AI服务处理图片失败',
-                [`messages[${msgIndex}].transient`]: true,
-              });
-              storageSaveConversation(activeCardId, this.data.messages);
-            }
-          }
         } catch (err) {
-          console.error('上传图片失败:', err);
-          wx.showToast({ title: '图片上传失败', icon: 'none' });
+          console.error('图片处理失败:', err);
+          wx.showToast({ title: '图片处理失败', icon: 'none' });
         } finally {
           wx.hideLoading();
-          this.startPendingSyncIfNeeded();
         }
       },
     });
