@@ -16,7 +16,8 @@
     show-scrollbar="{{false}}"
     scroll-top="{{scrollTop}}"
   >
-    <view class="message-list">
+    <view class="message-list"
+      style="padding-bottom: {{keyboardHeight > 0 ? (keyboardHeight + inputContainerHeight + 16) + 'px' : (inputContainerHeight +8 + 32) + 'rpx'}}">
       <!-- 消息列表 -->
       <view 
         wx:for="{{messages}}" 
@@ -88,7 +89,11 @@
   </scroll-view>
   
   <!-- 悬浮确认按钮 -->
-  <view class="floating-confirm-btn" bindtap="onConfirm">
+  <view 
+    class="floating-confirm-btn" 
+    bindtap="onConfirm"
+    style="bottom: {{keyboardHeight > 0 ? (keyboardHeight + inputContainerHeight + 16) + 'px' : (inputContainerHeight +8 + 32) + 'px'}}"
+  >
     <t-icon name="check" size="48rpx" color="#fff" />
   </view>
 
@@ -112,7 +117,7 @@
         bindblur="onInputBlur"
         bindkeyboardheightchange="onKeyboardChange"
         bindlinechange="onLineChange"
-        confirm-type="send"
+       
         adjust-position="{{false}}"
         fixed
         show-confirm-bar="{{false}}"

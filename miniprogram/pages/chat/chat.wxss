@@ -246,6 +246,7 @@ page {
   align-items: flex-end;
   box-shadow: 0 16rpx 32rpx rgba(17, 24, 39, 0.12);
   border: 2rpx solid rgba(229, 231, 235, 0.9);
+  z-index: 2;
 }
 
 .action-btn {
@@ -322,7 +323,7 @@ page {
 /* 悬浮确认按钮 */
 .floating-confirm-btn {
   position: fixed;
-  bottom: 160rpx;
+  bottom: 152rpx; /* 32rpx(输入框bottom) + 104rpx(输入框默认高度) + 16rpx(间距) */
   left: 32rpx;
   width: 96rpx;
   height: 96rpx;
@@ -331,8 +332,9 @@ page {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10rpx 26rpx rgba(17, 24, 39, 0.18);
-  z-index: 100;
+  box-shadow: 0 10rpx 26rpx rgba2(17, 24, 39, 0.18);
+  z-index: 2;
+  transition: bottom 0.2s ease;
 }
 
 .floating-confirm-btn:active {

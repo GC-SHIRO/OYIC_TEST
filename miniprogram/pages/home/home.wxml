@@ -24,7 +24,7 @@
       
       <!-- 未完成的角色卡片 -->
       <view 
-        class="character-card card-incomplete" 
+        class="character-card card-incomplete {{isDeleteMode ? 'delete-mode' : ''}}" 
         wx:for="{{incompleteCharacters}}" 
         wx:key="id"
         bindtap="onCardTap"
@@ -52,7 +52,7 @@
       
       <!-- 已完成的角色卡片 -->
       <view 
-        class="character-card card-completed" 
+        class="character-card card-completed {{isDeleteMode ? 'delete-mode' : ''}}" 
         wx:for="{{completedCharacters}}" 
         wx:key="id"
         bindtap="onCardTap"
