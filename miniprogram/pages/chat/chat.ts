@@ -50,8 +50,25 @@ Page({
     keyboardHeight: 0,
     userAvatar: '',
     pendingImage: null as { path: string, fileID?: string, compressedPath?: string } | null,
+    inputContainerHeight: 0,
+  },
+  onReady() {
+    this.getInputContainerHeight();
   },
 
+  // 获取输入框容器高度
+  getInputContainerHeight() {
+    const query = wx.createSelectorQuery().in(this);
+    query.select('.input-container').boundingClientRect((rect) => {
+      if (rect) {
+        this.setData({
+          inputContainerHeight: rect.height // 单位 px
+        });
+      }
+    }).exec();
+  },
+
+  // 行数变化时重新获取高度
   onLoad(options: { characterId?: string }) {
     this.loadUserAvatar();
     if (options.characterId) {
@@ -129,6 +146,9 @@ Page({
 
   onLineChange() {
     this.scrollToBottom();
+     setTimeout(() => {
+      this.getInputContainerHeight();
+    }, 100);
   },
 
   onKeyboardChange(e: any) {
