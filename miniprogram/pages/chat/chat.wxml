@@ -104,7 +104,7 @@
         bindblur="onInputBlur"
         bindkeyboardheightchange="onKeyboardChange"
         bindlinechange="onLineChange"
-        confirm-type="send"
+       
         adjust-position="{{false}}"
         fixed
         show-confirm-bar="{{false}}"
