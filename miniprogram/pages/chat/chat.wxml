@@ -47,9 +47,22 @@
             </view>
             <!-- 使用 Markdown 渲染 AI 消息，用户消息保持纯文本 -->
             <t-chat-markdown 
-              wx:elif="{{item.role === 'ai'}}"
+              wx:elif="{{item.role === 'ai' && !item.isError}}"
               content="{{item.content}}"
             />
+            <!-- 错误消息显示 -->
+            <view wx:elif="{{item.isError}}" class="error-message">
+              <text class="error-text">{{item.content}}</text>
+              <!-- 重新发送按钮 -->
+              <view 
+                class="resend-btn" 
+                bindtap="onResend" 
+                data-message-id="{{item.id}}"
+              >
+                <t-icon name="refresh" size="24rpx" color="#fff" />
+                <text class="resend-text">重新发送</text>
+              </view>
+            </view>
             <text wx:else>{{item.content}}</text>
           </view>
           <!-- 图片消息 -->

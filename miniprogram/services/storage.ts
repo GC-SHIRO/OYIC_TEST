@@ -23,6 +23,12 @@ export interface IMessage {
   requestId?: string;
   userId?: string;
   sequence?: number; // 消息序号，用于确保排序正确
+  isError?: boolean; // 是否为错误消息
+  isTimeout?: boolean; // 是否为超时错误
+  originalRequest?: {
+    text: string;
+    images?: string[];
+  }; // 原始请求内容，用于重新发送
 }
 
 // 本地缓存键名前缀

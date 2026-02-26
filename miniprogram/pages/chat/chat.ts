@@ -16,6 +16,7 @@ import { uploadImagesToCloud, compressImage } from '../../services/image';
 
 const WELCOME_CONTENT = '你好！我是你的角色创作助手\n\n告诉我你的想法吧！可以是角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~';
 const DIFY_ERROR_TEXT = 'AI服务出现错误，请联系管理员处理';
+const DIFY_TIMEOUT_TEXT = '请求超时，AI服务响应时间过长，请稍后重试~';
 
 // AI思考中轮播文本
 const PENDING_TEXTS = [
@@ -149,8 +150,8 @@ Page({
 
   // 发送文字消息
   async onSend() {
-    const { inputValue, messages, difyConversationId, characterId, isSending, pendingImage } = this.data;
-    
+    const { inputValue, messages, isSending, pendingImage } = this.data;
+
     if (!inputValue.trim() && !pendingImage) return;
     if (isSending) {
       wx.showToast({ title: '上一条消息处理中', icon: 'none' });
@@ -183,143 +184,20 @@ Page({
     this.finishTypewriter();
 
     const userText = inputValue.trim() || '参考图片';
-    const requestId = generateRequestId();
 
-    try {
-      // 首次发送时创建角色卡草稿
-      let activeCardId = characterId;
-      if (!activeCardId) {
-        const draft = await this.createCharacterDraft();
-        if (!draft) {
-          this.setData({ isSending: false });
-          return;
-        }
-        activeCardId = draft;
-      }
-
-      let userMessage: IMessage;
-      let aiPlaceholder: IMessage;
-      let compressedFileIDs: string[] | undefined;
-
-      // 如果有待发送的图片，先上传
-      if (pendingImage) {
-        wx.showLoading({ title: '上传中...' });
-        
-        const originalFileID = await uploadImagesToCloud([pendingImage.path]);
-        
-        let imageToUpload = pendingImage.path;
-        if (pendingImage.compressedPath) {
-          imageToUpload = pendingImage.compressedPath;
-        }
-        compressedFileIDs = await uploadImagesToCloud([imageToUpload], 'chat_images_compressed');
-
-        userMessage = {
-          id: `user_${requestId}`,
-          role: 'user',
-          content: userText,
-          images: originalFileID,
-          timestamp: Date.now(),
-          animate: true,
-          requestId,
-          userId: getCurrentUserId(),
-          sequence: getNextSequence(),
-        };
-
-        aiPlaceholder = {
-          id: `ai_${requestId}`,
-          role: 'ai',
-          content: '',
-          timestamp: Date.now(),
-          animate: true,
-          pending: true,
-          pendingText: '正在分析图片',
-          requestId,
-          userId: 'ai',
-          sequence: getNextSequence(),
-        };
-        
+    // 如果有待发送的图片，先上传
+    let originalFileID: string[] | undefined;
+    if (pendingImage) {
+      wx.showLoading({ title: '上传中...' });
+      try {
+        originalFileID = await uploadImagesToCloud([pendingImage.path]);
+      } finally {
         wx.hideLoading();
-      } else {
-        userMessage = {
-          id: `user_${requestId}`,
-          role: 'user',
-          content: userText,
-          timestamp: Date.now(),
-          animate: true,
-          requestId,
-          userId: getCurrentUserId(),
-          sequence: getNextSequence(),
-        };
-
-        aiPlaceholder = {
-          id: `ai_${requestId}`,
-          role: 'ai',
-          content: '',
-          timestamp: Date.now(),
-          animate: true,
-          pending: true,
-          pendingText: PENDING_TEXTS[0],
-          requestId,
-          userId: 'ai',
-          sequence: getNextSequence(),
-        };
       }
-
-      const updatedMessages = [...messages, userMessage, aiPlaceholder];
-      this.setData({
-        messages: updatedMessages,
-        inputValue: '',
-        pendingImage: null,
-      });
-      storageSaveConversation(activeCardId, updatedMessages);
-      this.scrollToBottom();
-
-      // 启动思考中文本轮播
-      if (!pendingImage) {
-        this.startPendingTextRotation(aiPlaceholder.id);
-      }
-
-      // 调用 Dify API
-      const response = await chatWithDify(userText, difyConversationId, activeCardId, requestId, compressedFileIDs);
-
-      // 停止思考中文本轮播
-      if (!pendingImage) {
-        this.stopPendingTextRotation();
-      }
-
-      if (response.success && response.message) {
-        // 更新 conversationId
-        if (response.conversationId && response.conversationId !== difyConversationId) {
-          this.setData({ difyConversationId: response.conversationId });
-          this.updateCardConversationId(response.conversationId);
-        }
-
-        // 更新 AI 消息
-        const msgIndex = this.findMessageIndexById(aiPlaceholder.id);
-        if (msgIndex >= 0) {
-          this.setData({ [`messages[${msgIndex}].pending`]: false });
-          storageSaveConversation(activeCardId, this.data.messages);
-          this.streamDisplayMessage(response.message, msgIndex);
-        }
-      } else {
-        // 处理错误
-        const msgIndex = this.findMessageIndexById(aiPlaceholder.id);
-        if (msgIndex >= 0) {
-          this.setData({
-            [`messages[${msgIndex}].pending`]: false,
-            [`messages[${msgIndex}].content`]: pendingImage ? 'AI服务处理图片失败' : DIFY_ERROR_TEXT,
-            [`messages[${msgIndex}].transient`]: true,
-          });
-          storageSaveConversation(activeCardId, this.data.messages);
-        }
-      }
-    } catch (err) {
-      console.error('发送消息失败:', err);
-      wx.showToast({ title: '发送失败', icon: 'none' });
-    } finally {
-      this.setData({ isSending: false });
-      this.startPendingSyncIfNeeded();
     }
+
+    // 调用实际发送方法
+    await this.doSendMessage(userText, originalFileID);
   },
 
   // 创建角色卡草稿
@@ -709,6 +587,209 @@ Page({
     });
   },
 
+  // 重新发送消息（用于超时或错误后重试）
+  async onResend(e: WechatMiniprogram.TouchEvent) {
+    const messageId = e.currentTarget.dataset.messageId;
+    if (!messageId) return;
+
+    const { messages, isSending } = this.data;
+    const msgIndex = messages.findIndex((m) => m.id === messageId);
+    if (msgIndex < 0) return;
+
+    const errorMsg = messages[msgIndex];
+    if (!errorMsg.isError || !errorMsg.originalRequest) {
+      wx.showToast({ title: '无法重新发送', icon: 'none' });
+      return;
+    }
+
+    if (isSending || hasRecentPendingMessage(messages)) {
+      this.showPendingMessageBlockedModal();
+      return;
+    }
+
+    const { text, images } = errorMsg.originalRequest;
+
+    // 找到对应的用户消息索引
+    let userMsgIndex = -1;
+    for (let i = msgIndex - 1; i >= 0; i--) {
+      if (messages[i].role === 'user' && messages[i].requestId === errorMsg.requestId) {
+        userMsgIndex = i;
+        break;
+      }
+    }
+
+    // 移除错误消息和对应的用户消息
+    const newMessages = messages.filter((_, idx) => idx !== msgIndex && idx !== userMsgIndex);
+    this.setData({ messages: newMessages });
+
+    // 重新发送
+    await this.doSendMessage(text, images);
+  },
+
+  // 实际发送消息的方法（提取自 onSend）
+  async doSendMessage(userText: string, originalFileID?: string[]) {
+    const { messages, characterId, difyConversationId } = this.data;
+
+    // 获取或创建角色卡
+    let activeCardId = characterId;
+    if (!activeCardId) {
+      const newCardId = await this.createCharacterDraft();
+      if (!newCardId) {
+        this.setData({ isSending: false });
+        return;
+      }
+      activeCardId = newCardId;
+    }
+
+    const requestId = generateRequestId();
+    let userMessage: IMessage;
+    let aiPlaceholder: IMessage;
+    let compressedFileIDs: string[] | undefined;
+    const pendingImage = originalFileID && originalFileID.length > 0;
+
+    try {
+      if (pendingImage) {
+        // 重新使用已上传的图片，不需要再次压缩上传
+        compressedFileIDs = originalFileID;
+
+        userMessage = {
+          id: `user_${requestId}`,
+          role: 'user',
+          content: userText || '[图片]',
+          images: originalFileID,
+          timestamp: Date.now(),
+          animate: true,
+          requestId,
+          userId: getCurrentUserId(),
+          sequence: getNextSequence(),
+        };
+
+        aiPlaceholder = {
+          id: `ai_${requestId}`,
+          role: 'ai',
+          content: '',
+          timestamp: Date.now(),
+          animate: true,
+          pending: true,
+          pendingText: '正在分析图片',
+          requestId,
+          userId: 'ai',
+          sequence: getNextSequence(),
+        };
+      } else {
+        userMessage = {
+          id: `user_${requestId}`,
+          role: 'user',
+          content: userText,
+          timestamp: Date.now(),
+          animate: true,
+          requestId,
+          userId: getCurrentUserId(),
+          sequence: getNextSequence(),
+        };
+
+        aiPlaceholder = {
+          id: `ai_${requestId}`,
+          role: 'ai',
+          content: '',
+          timestamp: Date.now(),
+          animate: true,
+          pending: true,
+          pendingText: PENDING_TEXTS[0],
+          requestId,
+          userId: 'ai',
+          sequence: getNextSequence(),
+        };
+      }
+
+      const updatedMessages = [...this.data.messages, userMessage, aiPlaceholder];
+      this.setData({
+        messages: updatedMessages,
+        inputValue: '',
+        pendingImage: null,
+      });
+      storageSaveConversation(activeCardId, updatedMessages);
+      this.scrollToBottom();
+
+      // 启动思考中文本轮播
+      if (!pendingImage) {
+        this.startPendingTextRotation(aiPlaceholder.id);
+      }
+
+      // 调用 Dify API
+      const response = await chatWithDify(userText, difyConversationId, activeCardId, requestId, compressedFileIDs);
+
+      // 停止思考中文本轮播
+      if (!pendingImage) {
+        this.stopPendingTextRotation();
+      }
+
+      if (response.success && response.message) {
+        // 更新 conversationId
+        if (response.conversationId && response.conversationId !== difyConversationId) {
+          this.setData({ difyConversationId: response.conversationId });
+          this.updateCardConversationId(response.conversationId);
+        }
+
+        // 更新 AI 消息
+        const msgIndex = this.findMessageIndexById(aiPlaceholder.id);
+        if (msgIndex >= 0) {
+          this.setData({ [`messages[${msgIndex}].pending`]: false });
+          storageSaveConversation(activeCardId, this.data.messages);
+          this.streamDisplayMessage(response.message, msgIndex);
+        }
+      } else {
+        // 处理错误
+        const msgIndex = this.findMessageIndexById(aiPlaceholder.id);
+        if (msgIndex >= 0) {
+          // 判断是否超时错误
+          const isTimeout = response.error && (
+            response.error.includes('超时') ||
+            response.error.includes('timeout') ||
+            response.error.includes('ETIMEOUT')
+          );
+          const errorContent = pendingImage
+            ? 'AI服务处理图片失败'
+            : (isTimeout ? DIFY_TIMEOUT_TEXT : DIFY_ERROR_TEXT);
+          this.setData({
+            [`messages[${msgIndex}].pending`]: false,
+            [`messages[${msgIndex}].content`]: errorContent,
+            [`messages[${msgIndex}].transient`]: true,
+            [`messages[${msgIndex}].isError`]: true,
+            [`messages[${msgIndex}].isTimeout`]: isTimeout,
+            [`messages[${msgIndex}].originalRequest`]: {
+              text: userText,
+              images: originalFileID,
+            },
+          });
+          storageSaveConversation(activeCardId, this.data.messages);
+        }
+      }
+    } catch (err) {
+      console.error('发送消息失败:', err);
+      // 处理异常错误，也显示重新发送按钮
+      const msgIndex = this.findMessageIndexById(aiPlaceholder.id);
+      if (msgIndex >= 0) {
+        this.setData({
+          [`messages[${msgIndex}].pending`]: false,
+          [`messages[${msgIndex}].content`]: DIFY_ERROR_TEXT,
+          [`messages[${msgIndex}].transient`]: true,
+          [`messages[${msgIndex}].isError`]: true,
+          [`messages[${msgIndex}].isTimeout`]: false,
+          [`messages[${msgIndex}].originalRequest`]: {
+            text: userText,
+            images: originalFileID,
+          },
+        });
+        storageSaveConversation(activeCardId, this.data.messages);
+      }
+      wx.showToast({ title: '发送失败', icon: 'none' });
+    } finally {
+      this.setData({ isSending: false });
+      this.startPendingSyncIfNeeded();
+    }
+  },
+
   onUnload() {
     this.stopPendingSync();
     this.stopPendingTextRotation();
@@ -806,7 +887,14 @@ function finalizeStalePendingMessages(messages: IMessage[], timeoutMs = 120000):
     if (!m.pending) return m;
     const ts = Number(m.timestamp || 0);
     if (!ts || now - ts < timeoutMs) return m;
-    return { ...m, pending: false, content: DIFY_ERROR_TEXT, transient: true };
+    return {
+      ...m,
+      pending: false,
+      content: DIFY_TIMEOUT_TEXT,
+      transient: true,
+      isError: true,
+      isTimeout: true,
+    };
   });
 }
 

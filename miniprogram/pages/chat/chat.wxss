@@ -414,3 +414,40 @@ page {
   margin: 16rpx 0;
   color: #6b7280;
 }
+
+/* 错误消息样式 */
+.error-message {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  align-items: flex-start;
+}
+
+.error-text {
+  color: #ef4444;
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+/* 重新发送按钮 */
+.resend-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  background: linear-gradient(135deg, #9ca3af 0%, #4b5563 100%);
+  padding: 12rpx 24rpx;
+  border-radius: 28rpx;
+  margin-top: 8rpx;
+  box-shadow: 0 4rpx 12rpx rgba(75, 85, 99, 0.2);
+}
+
+.resend-btn:active {
+  transform: scale(0.95);
+  opacity: 0.9;
+}
+
+.resend-text {
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 500;
+}
