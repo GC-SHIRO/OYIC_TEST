@@ -12,7 +12,7 @@ interface UsageLog {
   id: string;
   type: UsageType | 'register';
   delta: number;
-  tokens: number;
+  chars: number;
   createdAt: number;
 }
 
@@ -111,8 +111,8 @@ Page({
       register: '注册奖励',
     };
 
-    const extra = log.type === 'chat' && log.tokens
-      ? `${log.tokens} tokens`
+    const extra = log.type === 'chat' && log.chars
+      ? `${log.chars} 字`
       : (metaMap[log.type] || '');
 
     return {

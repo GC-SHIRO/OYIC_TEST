@@ -222,8 +222,8 @@ async function sendChatMessage(event, openId) {
       return { code: -1, message: result.error, error: result.error }
     }
 
-    const tokens = result.tokens || 0
-    const chatCost = calcChatCost(tokens)
+    const chars = result.chars || 0
+    const chatCost = calcChatCost(chars)
 
     if (isSync) {
       // Sync 消息：不扣费、不写入对话记录，仅同步角色卡信息到 Dify
@@ -231,8 +231,8 @@ async function sendChatMessage(event, openId) {
     } else if (isCardGen) {
       if (cardId) {
         await savePendingGiveResultCharge(openId, cardId, {
-          cost: chatCost,
-          tokens,
+          cost: chatCost + (billingConfig.CARD_GEN_COST || 80),
+          chars,
           conversationId: result.conversationId || '',
           messageId: result.messageId || '',
         })
@@ -243,7 +243,7 @@ async function sendChatMessage(event, openId) {
       const applyResult = await applyBalanceChanges(openId, [{
         type: 'chat',
         delta: -chatCost,
-        tokens,
+        chars,
         conversationId: result.conversationId || '',
         cardId: cardId || '',
         source: CHAT_PROVIDER,
@@ -266,8 +266,8 @@ async function sendChatMessage(event, openId) {
         answer: result.answer || '',
         conversationId: result.conversationId || '',
         messageId: result.messageId || '',
-        tokens,
-        cost: isCardGen ? 0 : chatCost,
+        chars,
+        cost: isCardGen ? (chatCost + (billingConfig.CARD_GEN_COST || 80)) : chatCost,
       }
     }
   } finally {
@@ -295,7 +295,7 @@ async function savePendingGiveResultCharge(openId, characterId, charge) {
         ...state,
         pendingGiveResultCharge: {
           cost: Math.max(0, Number(charge.cost) || 0),
-          tokens: Math.max(0, Number(charge.tokens) || 0),
+          chars: Math.max(0, Number(charge.chars) || 0),
           conversationId: charge.conversationId || '',
           messageId: charge.messageId || '',
           updatedAt: db.serverDate(),
@@ -333,7 +333,7 @@ async function settleGiveResultCharge(event, openId) {
   const applyResult = await applyBalanceChanges(openId, [{
     type: 'chat',
     delta: -cost,
-    tokens: Math.max(0, Number(pending.tokens) || 0),
+    chars: Math.max(0, Number(pending.chars) || 0),
     conversationId: pending.conversationId || '',
     cardId,
     source: CHAT_PROVIDER,
@@ -355,7 +355,7 @@ async function settleGiveResultCharge(event, openId) {
           ...state,
           pendingGiveResultCharge: {
             cost: 0,
-            tokens: 0,
+            chars: 0,
             conversationId: '',
             messageId: '',
             updatedAt: db.serverDate(),
@@ -610,7 +610,6 @@ function httpPostSSE(url, body, headers) {
     let fullAnswer = ''
     let conversationId = ''
     let messageId = ''
-    let tokens = 0
     let buffer = ''
 
     const req = https.request(options, (res) => {
@@ -650,7 +649,6 @@ function httpPostSSE(url, body, headers) {
             } else if (evt.event === 'message_end') {
               if (evt.conversation_id) conversationId = evt.conversation_id
               if (evt.message_id) messageId = evt.message_id
-              tokens = pickTokens(evt.metadata)
             } else if (evt.event === 'error') {
               resolve({ error: evt.message || '流式响应错误' })
               req.destroy()
@@ -674,7 +672,7 @@ function httpPostSSE(url, body, headers) {
           } catch (e) { /* ignore */ }
         }
 
-        resolve({ answer: fullAnswer, conversationId, messageId, tokens })
+        resolve({ answer: fullAnswer, conversationId, messageId, chars: fullAnswer.length })
       })
     })
 
@@ -692,11 +690,11 @@ function httpPostSSE(url, body, headers) {
   })
 }
 
-function calcChatCost(tokens) {
-  const unit = billingConfig.TOKEN_UNIT || 1000
-  const costPerUnit = billingConfig.TOKEN_COST || 0
-  const usedTokens = Math.max(0, Number(tokens) || 0)
-  const units = Math.max(1, Math.ceil(usedTokens / unit))
+function calcChatCost(chars) {
+  const unit = billingConfig.CHAR_UNIT || 10
+  const costPerUnit = billingConfig.CHAR_COST || 1
+  const usedChars = Math.max(0, Number(chars) || 0)
+  const units = Math.max(1, Math.ceil(usedChars / unit))
   return units * costPerUnit
 }
 
@@ -710,15 +708,7 @@ function isSyncRequest(query) {
   return query.trim() === 'Sync'
 }
 
-function pickTokens(metadata) {
-  if (!metadata || !metadata.usage) return 0
-  const usage = metadata.usage
-  return usage.total_tokens
-    || usage.total_tokens_count
-    || usage.total
-    || usage.totalTokens
-    || 0
-}
+
 
 async function getUserByOpenId(openId) {
   const res = await db.collection('users').where({ _openid: openId }).get()
@@ -763,7 +753,7 @@ async function applyBalanceChanges(openId, changes) {
             delta: change.delta,
             balanceBefore: before,
             balanceAfter: after,
-            tokens: change.tokens || 0,
+            chars: change.chars || 0,
             conversationId: change.conversationId || '',
             cardId: change.cardId || '',
             source: change.source || 'dify',

@@ -34,14 +34,14 @@
 
 ### 术语定义
 - 创作点：计费单位（原文档中的"积分"统一更名）
-- token：Dify 返回的 token 用量统计
+- 字符数：AI 回复的字符长度，作为计费依据
 
 ### 计费与配置（云函数常量）
-建议在云函数内新增配置文件，如 `cloudfunctions/billingConfig.js`：
-- `TOKEN_UNIT`：统计粒度（如 1000 tokens）
-- `TOKEN_COST`：每 `TOKEN_UNIT` 消耗的创作点
-- `CARD_GEN_COST`：角色卡生成消耗的创作点
-- `REGISTER_BONUS`：注册赠送创作点
+各云函数内均有独立的 `billingConfig.js`，需手动保持一致：
+- `CHAR_UNIT`：统计粒度（当前为 10，即每 10 字符 = 1 单位）
+- `CHAR_COST`：每单位消耗的创作点（当前为 1）
+- `CARD_GEN_COST`：角色卡生成固定附加消耗的创作点（当前为 80）
+- `REGISTER_BONUS`：注册赠送创作点（统一由 login/billingConfig.js 控制，当前为 3000）
 - `SHARE_DAILY_BONUS`：每日分享奖励创作点
 - `RECHARGE_PACKS`：充值方案数组（price, points, bonus 等）
 
@@ -64,7 +64,8 @@
 - `delta` number（正数入账，负数消耗）
 - `balanceBefore` number
 - `balanceAfter` number
-- `tokens` number（可为空）
+- `tokens` number（已废弃，改用 `chars`）
+- `chars` number（AI 回复字符数，可为空）
 - `conversationId` string（可为空）
 - `cardId` string（可为空）
 - `source` string（dify | wechatPay | system）
@@ -80,9 +81,9 @@
 	- 写入一条 `usage_logs`（type=register）
 
 **2. AI 对话消耗**
-- `difyChat` 云函数返回 token 用量后：
-	- 根据 `TOKEN_UNIT` 与 `TOKEN_COST` 计算消耗值
-	- 校验余额是否足够，不足则拒绝调用并返回错误码
+- `difyChat` 云函数获取 AI 回复后：
+	- 根据回复字符数、`CHAR_UNIT` 与 `CHAR_COST` 计算消耗值
+	- 允许余额变为负数，在下次提问时拒绝对话
 	- 原子更新 `users.balance` 并写入 `usage_logs`
 
 **3. 角色卡生成消耗**

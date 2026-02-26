@@ -461,14 +461,14 @@ const DIFY_BASE_URL = 'https://api.dify.ai/v1';
 
 计费比率与充值方案都在云函数配置文件中，修改后需重新上传对应云函数。
 
-- 主配置（充值方案、分享活动、token 计费）：
+- 主配置（充值方案、分享活动、字符计费）：
   - [cloudfunctions/billing/billingConfig.js](cloudfunctions/billing/billingConfig.js)
   - 可调整字段：
-    - `TOKEN_UNIT`：token 计费的统计粒度（例如 1000，表示每 1000 tokens 计费一次）
-    - `TOKEN_COST`：每个 `TOKEN_UNIT` 消耗的创作点数
-    - `CARD_GEN_COST`：角色卡生成的固定消耗创作点数
-    - `REGISTER_BONUS`：新用户注册赠送创作点数
+    - `CHAR_UNIT`：字符计费的统计粒度（当前 10，表示每 10 字符计费一次）
+    - `CHAR_COST`：每个 `CHAR_UNIT` 消耗的创作点数
+    - `CARD_GEN_COST`：角色卡生成的固定附加消耗创作点数
     - `SHARE_DAILY_BONUS`：每日分享奖励创作点数（需结合分享幂等逻辑）
+    - 注册奖励统一由 `login/billingConfig.js` 的 `REGISTER_BONUS` 控制（当前为 3000）
     - `RECHARGE_PACKS`：充值方案数组，字段说明：
       - `price`：人民币金额
       - `points`：购买得到的创作点数

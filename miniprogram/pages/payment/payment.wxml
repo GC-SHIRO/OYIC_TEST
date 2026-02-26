@@ -61,7 +61,7 @@
 
   <view class="rules">
     <text class="rules-title">计费规则</text>
-    <text>AI 对话每 1,000 tokens 消耗 30 创作点；角色卡生成额外消耗 80 创作点。</text>
+    <text>AI 对话每 10 字消耗 1 创作点；角色卡生成额外消耗 80 创作点。</text>
   </view>
 
   <view class="activity-label">活动</view>

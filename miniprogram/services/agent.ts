@@ -58,7 +58,7 @@ export async function chatWithDify(
     const duration = Date.now() - startTime;
     const result = res.result as any;
     if (result.code === 0 && result.data) {
-      console.log('[Chat Stats] tokens:', result.data.tokens, '| 创作点:', result.data.cost, '| 时长:', duration + 'ms');
+      console.log('[Chat Stats] 字数:', result.data.chars, '| 创作点:', result.data.cost, '| 时长:', duration + 'ms');
     }
 
     if (result.code === 1) {

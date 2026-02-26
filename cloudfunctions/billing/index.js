@@ -32,8 +32,8 @@ exports.main = async (event, context) => {
           message: 'ok',
           data: {
             CARD_GEN_COST: billingConfig.CARD_GEN_COST,
-            TOKEN_UNIT: billingConfig.TOKEN_UNIT,
-            TOKEN_COST: billingConfig.TOKEN_COST,
+            CHAR_UNIT: billingConfig.CHAR_UNIT,
+            CHAR_COST: billingConfig.CHAR_COST,
           }
         };
       case 'usage':
@@ -99,7 +99,7 @@ async function getUsageLogs(openId, event) {
     id: log._id,
     type: log.type,
     delta: log.delta || 0,
-    tokens: log.tokens || 0,
+    chars: log.chars || 0,
     createdAt: normalizeDate(log.createdAt),
     source: log.source || '',
     meta: log.meta || {},
@@ -176,9 +176,7 @@ async function applyBalanceChange(openId, change, userPatch) {
       const user = res.data[0];
       const balanceBefore = user.balance || 0;
       const balanceAfter = balanceBefore + change.delta;
-      if (balanceAfter < 0) {
-        throw new Error('创作点不足');
-      }
+      // 允许余额为负数，在下次提问时拒绝对话
 
       await transaction.collection('users').doc(user._id).update({
         data: {
@@ -195,7 +193,7 @@ async function applyBalanceChange(openId, change, userPatch) {
           delta: change.delta,
           balanceBefore,
           balanceAfter,
-          tokens: change.tokens || 0,
+          chars: change.chars || 0,
           conversationId: change.conversationId || '',
           cardId: change.cardId || '',
           source: change.source || 'system',

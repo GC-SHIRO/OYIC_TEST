@@ -42,6 +42,6 @@
   </view>
 
   <view class="notice">
-    每条记录包含 tokens 统计与消费类型，历史记录按用户 openId 隔离并存储于云数据库。
+    每条记录包含字数统计与消费类型，历史记录按用户 openId 隔离并存储于云数据库。
   </view>
 </view>

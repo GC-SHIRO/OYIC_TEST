@@ -1,8 +1,9 @@
+// 计费配置（与 difyChat/billingConfig.js、login/billingConfig.js 需手动保持一致）
 module.exports = {
-  TOKEN_UNIT: 10, // 统计粒度：每10 tokens算1单位
-  TOKEN_COST: 1,  // 每单位消耗1点
-  CARD_GEN_COST: 300, // 生成角色卡消耗300点
-  REGISTER_BONUS: 6000, // 注册奖励6000点
+  CHAR_UNIT: 10,  // 统计粒度：每10字符算1单位
+  CHAR_COST: 1,   // 每单位消耗1创作点
+  CARD_GEN_COST: 80, // 角色卡生成固定附加消耗
+  // 注册奖励统一由 login/billingConfig.js 的 REGISTER_BONUS 控制（当前为 3000）
   SHARE_DAILY_BONUS: 120,
   RECHARGE_RATE: 1000, // 充值1元=1000点
   RECHARGE_PACKS: [
