@@ -98,7 +98,7 @@
 .delete-mode .character-card {
   transform: scale(0.94);
   box-shadow: 0 10rpx 26rpx rgba(17, 24, 39, 0.12);
-  animation: shrinkIn 160ms ease-out both;
+  animation: shrinkIn 160ms ease-out forwards, breathe 2s ease-in-out 160ms infinite;
 }
 
 .delete-exit .character-card {
@@ -127,7 +127,9 @@
   line-height: 1;
   margin-top: -2rpx;
 }
-
+.delete-mode{
+  
+}
 .exit-edit-fab {
   position: fixed;
   left: 50%;
@@ -229,4 +231,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(0.94);
+    box-shadow: 0 10rpx 26rpx rgba(17, 24, 39, 0.12);
+  }
+  50% {
+    transform: scale(0.97);
+    box-shadow: 0 16rpx 36rpx rgba(17, 24, 39, 0.18);
+  }
 }
