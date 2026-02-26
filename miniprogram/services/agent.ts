@@ -190,20 +190,19 @@ function convertPythonToJson(text: string): string {
     .replace(/\bTrue\b/g, 'true')
     .replace(/\bFalse\b/g, 'false');
 
-  result = result.replace(/'([^'"]*)':/g, '"$1":');
+  result = result.replace(/'([a-zA-Z_][a-zA-Z0-9_]*)'\s*:/g, '"$1":');
 
-  result = result.replace(/:\s*'([^']*)'/g, (match, content) => {
+  result = result.replace(/:\s*'((?:[^'"\\\[\]{}]|\\.)*)'/g, (match, content) => {
     const escaped = content.replace(/"/g, '\\"');
     return `: "${escaped}"`;
   });
 
-  result = result.replace(/\[\s*'([^\]]*)'\s*\]/g, (match, content) => {
-    const items = content.split(/',\s*'/).map((item: string) => {
-      const trimmed = item.replace(/^'|'$/g, '').replace(/"/g, '\\"');
-      return `"${trimmed}"`;
-    });
-    return `[${items.join(', ')}]`;
-  });
+  result = result.replace(/\[\s*'/g, '["');
+  result = result.replace(/'\s*\]/g, '"]');
+  result = result.replace(/'\s*,\s*'/g, '", "');
+
+  result = result.replace(/\{\s*'/g, '{"');
+  result = result.replace(/'\s*\}/g, '"}');
 
   return result;
 }
