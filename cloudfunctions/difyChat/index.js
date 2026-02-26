@@ -277,6 +277,376 @@ async function sendChatMessage(event, openId) {
   }
 }
 
+
+
+
+
+
+async function savePendingGiveResultCharge(openId, characterId, charge) {
+  if (!openId || !characterId) return
+
+  const record = await ensureConversationRecord(openId, characterId)
+  if (!record || !record._id) return
+
+  const state = record.requestState || {}
+  await db.collection('conversations').doc(record._id).update({
+    data: {
+      requestState: {
+        ...state,
+        pendingGiveResultCharge: {
+          cost: Math.max(0, Number(charge.cost) || 0),
+          tokens: Math.max(0, Number(charge.tokens) || 0),
+          conversationId: charge.conversationId || '',
+          messageId: charge.messageId || '',
+          updatedAt: db.serverDate(),
+        },
+      },
+      updatedAt: db.serverDate(),
+    }
+  })
+}
+
+async function settleGiveResultCharge(event, openId) {
+  const { cardId } = event || {}
+  if (!cardId) {
+    return { code: -1, message: '缺少 cardId 参数' }
+  }
+
+  const res = await db.collection('conversations').where({
+    _openid: openId,
+    characterId: cardId,
+  }).limit(1).get()
+
+  const record = res.data && res.data.length > 0 ? res.data[0] : null
+  const state = record?.requestState || {}
+  const pending = state.pendingGiveResultCharge || {}
+  const cost = Math.max(0, Number(pending.cost) || 0)
+
+  if (cost <= 0) {
+    return {
+      code: 0,
+      message: '无需结算',
+      data: { charged: 0 }
+    }
+  }
+
+  const applyResult = await applyBalanceChanges(openId, [{
+    type: 'chat',
+    delta: -cost,
+    tokens: Math.max(0, Number(pending.tokens) || 0),
+    conversationId: pending.conversationId || '',
+    cardId,
+    source: CHAT_PROVIDER,
+    meta: {
+      messageId: pending.messageId || '',
+      settleBy: 'preview_onComplete',
+      deferredFrom: 'give_result',
+    },
+  }])
+
+  if (!applyResult.ok) {
+    return { code: -1, message: applyResult.message || '结算失败' }
+  }
+
+  if (record && record._id) {
+    await db.collection('conversations').doc(record._id).update({
+      data: {
+        requestState: {
+          ...state,
+          pendingGiveResultCharge: {
+            cost: 0,
+            tokens: 0,
+            conversationId: '',
+            messageId: '',
+            updatedAt: db.serverDate(),
+          },
+        },
+        updatedAt: db.serverDate(),
+      }
+    })
+  }
+
+  return {
+    code: 0,
+    message: '结算成功',
+    data: { charged: cost }
+  }
+}
+
+// ================================
+// 对话云端持久化（后端兜底）
+// ================================
+async function upsertConversation(openId, characterId, userText, aiText, requestId, files) {
+  if (!characterId) return
+
+  const now = Date.now()
+  const userMsg = {
+    id: requestId ? `user_${requestId}` : `user_${now}`,
+    role: 'user',
+    content: userText || '',
+    timestamp: now,
+    userId: openId,
+    requestId: requestId || '',
+  }
+
+  const aiMsg = {
+    id: requestId ? `ai_${requestId}` : `ai_${now + 1}`,
+    role: 'ai',
+    content: aiText || '',
+    timestamp: now + 1,
+    userId: 'ai',
+    requestId: requestId || '',
+  }
+
+  // 如果前端传入 files（可能为 cloud fileID 列表或包含 url 的对象），把它们保存到 user 消息中
+  try {
+    if (Array.isArray(files) && files.length > 0) {
+      userMsg.images = files.map((f) => {
+        if (!f) return f
+        if (typeof f === 'string') return f
+        if (typeof f === 'object') {
+          // 优先保留云端 fileID 字段（upload_file_id）或 url
+          return f.upload_file_id || f.fileID || f.fileId || f.url || f.name || JSON.stringify(f)
+        }
+        return f
+      })
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const record = await ensureConversationRecord(openId, characterId)
+  if (!record || !record._id) return
+  const messages = Array.isArray(record.messages) ? record.messages : []
+  if (!messages.some((msg) => msg && msg.id === 'welcome')) {
+    await db.collection('conversations').doc(record._id).update({
+      data: {
+        messages: [buildWelcomeMessage(), ...messages],
+        updatedAt: db.serverDate(),
+      }
+    })
+  }
+
+  try {
+    console.log('upsertConversation -> pushing messages', { userMsgPreview: { id: userMsg.id, content: (userMsg.content||'').slice(0,200), imagesCount: Array.isArray(userMsg.images)?userMsg.images.length:0 }, aiMsgPreview: { id: aiMsg.id, content: (aiMsg.content||'').slice(0,200) } })
+  } catch (e) { /* ignore */ }
+
+  await db.collection('conversations').doc(record._id).update({
+    data: {
+      messages: _.push([userMsg, aiMsg]),
+      updatedAt: db.serverDate(),
+    }
+  })
+}
+
+async function ensureConversationRecord(openId, characterId) {
+  const existing = await db.collection('conversations').where({
+    _openid: openId,
+    characterId,
+  }).get()
+
+  const record = existing.data && existing.data.length > 0 ? existing.data[0] : null
+  if (record && record._id) return record
+
+  const legacyRes = await db.collection('conversations')
+    .where({ characterId })
+    .orderBy('updatedAt', 'desc')
+    .limit(1)
+    .get()
+  const legacy = legacyRes.data && legacyRes.data.length > 0 ? legacyRes.data[0] : null
+  if (legacy && legacy._id) {
+    await db.collection('conversations').doc(legacy._id).update({
+      data: {
+        _openid: openId,
+        characterId,
+        updatedAt: db.serverDate(),
+      }
+    })
+    return {
+      ...legacy,
+      _openid: openId,
+      characterId,
+    }
+  }
+
+  const addRes = await db.collection('conversations').add({
+    data: {
+      _openid: openId,
+      characterId,
+      messages: [buildWelcomeMessage()],
+      requestState: {
+        processingIds: [],
+        completedIds: [],
+        failedIds: [],
+      },
+      createdAt: db.serverDate(),
+      updatedAt: db.serverDate(),
+    }
+  })
+
+  return {
+    _id: addRes._id,
+    _openid: openId,
+    characterId,
+    messages: [buildWelcomeMessage()],
+    requestState: {
+      processingIds: [],
+      completedIds: [],
+      failedIds: [],
+    },
+  }
+}
+
+async function beginConversationRequest(openId, characterId, requestId) {
+  const record = await ensureConversationRecord(openId, characterId)
+  if (!record || !record._id) return { duplicate: false }
+
+  return await db.runTransaction(async (transaction) => {
+    const res = await transaction.collection('conversations').doc(record._id).get()
+    const current = res.data || {}
+    const state = current.requestState || {}
+    const processingIds = Array.isArray(state.processingIds) ? state.processingIds : []
+    const completedIds = Array.isArray(state.completedIds) ? state.completedIds : []
+    const failedIds = Array.isArray(state.failedIds) ? state.failedIds : []
+
+    if (processingIds.includes(requestId) || completedIds.includes(requestId)) {
+      return { duplicate: true }
+    }
+
+    await transaction.collection('conversations').doc(record._id).update({
+      data: {
+        requestState: {
+          processingIds: trimIdList([...processingIds, requestId], 50),
+          completedIds: trimIdList(completedIds, 200),
+          failedIds: trimIdList(failedIds, 50),
+        },
+        updatedAt: db.serverDate(),
+      }
+    })
+
+    return { duplicate: false }
+  })
+}
+
+async function finishConversationRequest(openId, characterId, requestId, status) {
+  if (!openId || !characterId || !requestId) return
+
+  const res = await db.collection('conversations').where({
+    _openid: openId,
+    characterId,
+  }).limit(1).get()
+  const record = res.data && res.data.length > 0 ? res.data[0] : null
+  if (!record || !record._id) return
+
+  const state = record.requestState || {}
+  const processingIds = Array.isArray(state.processingIds) ? state.processingIds : []
+  const completedIds = Array.isArray(state.completedIds) ? state.completedIds : []
+  const failedIds = Array.isArray(state.failedIds) ? state.failedIds : []
+
+  const nextProcessing = processingIds.filter((id) => id !== requestId)
+  const nextCompleted = status === 'done'
+    ? trimIdList([...completedIds, requestId], 200)
+    : completedIds
+  const nextFailed = status === 'done'
+    ? failedIds.filter((id) => id !== requestId)
+    : trimIdList([...failedIds, requestId], 50)
+
+  await db.collection('conversations').doc(record._id).update({
+    data: {
+      requestState: {
+        processingIds: nextProcessing,
+        completedIds: nextCompleted,
+        failedIds: nextFailed,
+      },
+      updatedAt: db.serverDate(),
+    }
+  })
+}
+
+function trimIdList(list, limit) {
+  if (!Array.isArray(list)) return []
+  return list.slice(Math.max(0, list.length - limit))
+}
+
+function normalizeRequestId(raw) {
+  if (!raw) return ''
+  return String(raw).trim().slice(0, 64)
+}
+
+function buildWelcomeMessage() {
+  return {
+    id: 'welcome',
+    role: 'ai',
+    content: WELCOME_CONTENT,
+    timestamp: Date.now(),
+    userId: 'ai',
+  }
+}
+
+/**
+ * 发起 HTTPS POST 请求并解析 SSE 流式响应
+ * Dify streaming 返回 text/event-stream，每行格式为:
+ *   data: {"event":"message","answer":"...","conversation_id":"..."}
+ *   data: {"event":"message_end","conversation_id":"...","metadata":{}}
+ */
+function httpPostSSE(url, body, headers) {
+  return new Promise((resolve) => {
+    const urlObj = new URL(url)
+    const postData = JSON.stringify(body)
+
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || 443,
+      path: urlObj.pathname + urlObj.search,
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Length': Buffer.byteLength(postData),
+        'Accept': 'text/event-stream',
+      },
+      timeout: 55000,  // 留出 ~5 秒的云函数收尾时间，避免被 runtime 直接杀死
+    }
+
+    let fullAnswer = ''
+    let conversationId = ''
+    let messageId = ''
+    let tokens = 0
+    let buffer = ''
+
+    const req = https.request(options, (res) => {
+      // 如果不是 2xx，当作普通响应读取错误
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        let errData = ''
+        res.on('data', (chunk) => { errData += chunk })
+        res.on('end', () => {
+          resolve({ error: `HTTP ${res.statusCode}: ${errData.substring(0, 300)}` })
+        })
+        return
+      }
+
+      res.on('data', (chunk) => {
+        buffer += chunk.toString()
+
+        // 按行解析 SSE
+        const lines = buffer.split('\n')
+        // 保留最后一行（可能不完整）
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed || !trimmed.startsWith('data:')) continue
+
+          const jsonStr = trimmed.slice(5).trim()
+          if (!jsonStr) continue
+
+          try {
+            const evt = JSON.parse(jsonStr)
+
+            if (evt.event === 'message' || evt.event === 'agent_message') {
+              // 增量文本片段
+              fullAnswer += (evt.answer || '')
+              if (evt.conversation_id) conversationId = evt.conversation_id
+              if (evt.message_id) messageId = evt.message_id
             } else if (evt.event === 'message_end') {
               if (evt.conversation_id) conversationId = evt.conversation_id
               if (evt.message_id) messageId = evt.message_id

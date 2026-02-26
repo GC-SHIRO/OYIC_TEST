@@ -4,17 +4,9 @@
  * API 密钥安全存放在云端，前端不暴露任何密钥
  */
 
-import { compareVersion } from '../miniprogram_npm/tdesign-miniprogram/common/version';
 import type { ICharacterInfo } from '../types/character';
 
 // ========== 类型定义 ==========
-
-/** Dify 对话响应（由云函数返回） */
-export interface IDifyChatResult {
-  answer: string;
-  conversationId: string;
-  messageId: string;
-}
 
 /** 调用 Dify 的统一返回类型 */
 export interface IAgentResponse {
@@ -198,101 +190,6 @@ function convertPythonToJson(text: string): string {
       return `"${escaped}"`;
     }
   );
-
-  return result;
-}
-
-/**
- * 安全尝试 JSON.parse
- */
-function tryParseJSON(str: string): any | null {
-  try {
-    return JSON.parse(str);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * 将 Python 风格的单引号字典转换为合法 JSON
- * 处理: 'key': 'value' → "key": "value"
- * 同时处理值内部包含的撇号（如 it's）
- */
-function fixPythonQuotes(text: string): string {
-  let result = '';
-  let i = 0;
-  let inString = false;
-  let stringChar = '';
-
-  while (i < text.length) {
-    const ch = text[i];
-
-    if (!inString) {
-      if (ch === "'") {
-        // 单引号开始字符串，替换为双引号
-        result += '"';
-        inString = true;
-        stringChar = "'";
-        i++;
-        continue;
-      } else if (ch === '"') {
-        result += '"';
-        inString = true;
-        stringChar = '"';
-        i++;
-        continue;
-      }
-      result += ch;
-      i++;
-    } else {
-      if (ch === '\\') {
-        // 转义字符，保留下一个字符
-        result += ch;
-        i++;
-        if (i < text.length) {
-          result += text[i];
-          i++;
-        }
-        continue;
-      }
-
-      if (stringChar === "'" && ch === "'") {
-        // 检查这个单引号是否是字符串结束符
-        // 结束符后面通常跟: , ] } 或空白/换行
-        const after = text.substring(i + 1).trimStart();
-        const nextChar = after[0];
-        if (!nextChar || ':,]}'.indexOf(nextChar) !== -1) {
-          // 是结束引号
-          result += '"';
-          inString = false;
-          i++;
-          continue;
-        } else {
-          // 值内部的撇号（如 it's），转义
-          result += "\\'";
-          i++;
-          continue;
-        }
-      }
-
-      if (stringChar === '"' && ch === '"') {
-        result += '"';
-        inString = false;
-        i++;
-        continue;
-      }
-
-      // 在单引号字符串内的双引号需要转义
-      if (stringChar === "'" && ch === '"') {
-        result += '\\"';
-        i++;
-        continue;
-      }
-
-      result += ch;
-      i++;
-    }
-  }
 
   return result;
 }
