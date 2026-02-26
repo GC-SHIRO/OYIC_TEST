@@ -154,11 +154,20 @@ function parseCharacterJSON(text: string): ICharacterInfo | null {
 
   console.log('提取的字符串:', jsonStr.substring(0, 200));
 
-  // 2. Python 转 JSON（改进版）
+  // 2. 先尝试直接解析 JSON（如果已经是有效 JSON 则不需要转换）
+  try {
+    const obj = JSON.parse(jsonStr);
+    console.log('直接 JSON 解析成功');
+    return normalizeCharacterInfo(obj);
+  } catch (e) {
+    console.log('直接解析失败，尝试 Python 转 JSON');
+  }
+
+  // 3. 如果直接解析失败，再进行 Python 转 JSON
   jsonStr = convertPythonToJson(jsonStr);
   console.log('转换后:', jsonStr.substring(0, 200));
 
-  // 3. 尝试解析
+  // 4. 尝试解析
   try {
     const obj = JSON.parse(jsonStr);
     console.log('解析成功');
@@ -174,22 +183,27 @@ function parseCharacterJSON(text: string): ICharacterInfo | null {
  * 将 Python 字典转换为 JSON（改进版）
  */
 function convertPythonToJson(text: string): string {
-  // 步骤 1: 替换 Python 关键字
-  let result = text
+  let result = text;
+
+  result = result
     .replace(/\bNone\b/g, 'null')
     .replace(/\bTrue\b/g, 'true')
     .replace(/\bFalse\b/g, 'false');
 
-  // 步骤 2: 使用正则替换单引号（更精确的模式）
-  // 匹配: '字符串内容' 其中内容不包含未转义的单引号
-  result = result.replace(
-    /'([^'\\]*(?:\\.[^'\\]*)*)'/g, 
-    (match, content) => {
-      // 将内容中的双引号转义
-      const escaped = content.replace(/"/g, '\\"');
-      return `"${escaped}"`;
-    }
-  );
+  result = result.replace(/'([^'"]*)':/g, '"$1":');
+
+  result = result.replace(/:\s*'([^']*)'/g, (match, content) => {
+    const escaped = content.replace(/"/g, '\\"');
+    return `: "${escaped}"`;
+  });
+
+  result = result.replace(/\[\s*'([^\]]*)'\s*\]/g, (match, content) => {
+    const items = content.split(/',\s*'/).map((item: string) => {
+      const trimmed = item.replace(/^'|'$/g, '').replace(/"/g, '\\"');
+      return `"${trimmed}"`;
+    });
+    return `[${items.join(', ')}]`;
+  });
 
   return result;
 }
