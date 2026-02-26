@@ -643,7 +643,7 @@ Page({
 
     const requestId = generateRequestId();
     let userMessage: IMessage;
-    let aiPlaceholder: IMessage;
+    let aiPlaceholder: IMessage | undefined;
     let compressedFileIDs: string[] | undefined;
     const pendingImage = originalFileID && originalFileID.length > 0;
 
@@ -702,7 +702,7 @@ Page({
         };
       }
 
-      const updatedMessages = [...this.data.messages, userMessage, aiPlaceholder];
+      const updatedMessages = [...this.data.messages, userMessage, aiPlaceholder!];
       this.setData({
         messages: updatedMessages,
         inputValue: '',
@@ -713,7 +713,7 @@ Page({
 
       // 启动思考中文本轮播
       if (!pendingImage) {
-        this.startPendingTextRotation(aiPlaceholder.id);
+        this.startPendingTextRotation(aiPlaceholder!.id);
       }
 
       // 调用 Dify API
@@ -732,7 +732,7 @@ Page({
         }
 
         // 更新 AI 消息
-        const msgIndex = this.findMessageIndexById(aiPlaceholder.id);
+        const msgIndex = this.findMessageIndexById(aiPlaceholder!.id);
         if (msgIndex >= 0) {
           this.setData({ [`messages[${msgIndex}].pending`]: false });
           storageSaveConversation(activeCardId, this.data.messages);
@@ -740,7 +740,7 @@ Page({
         }
       } else {
         // 处理错误
-        const msgIndex = this.findMessageIndexById(aiPlaceholder.id);
+        const msgIndex = this.findMessageIndexById(aiPlaceholder!.id);
         if (msgIndex >= 0) {
           // 判断是否超时错误
           const isTimeout = response.error && (
@@ -768,7 +768,7 @@ Page({
     } catch (err) {
       console.error('发送消息失败:', err);
       // 处理异常错误，也显示重新发送按钮
-      const msgIndex = this.findMessageIndexById(aiPlaceholder.id);
+      const msgIndex = this.findMessageIndexById(aiPlaceholder!.id);
       if (msgIndex >= 0) {
         this.setData({
           [`messages[${msgIndex}].pending`]: false,
