@@ -379,7 +379,16 @@ async function startChatJob(event, openId) {
     updatedAt: db.serverDate(),
   })
 
-  console.log('[startChatJob] 任务创建成功:', { jobId, cardId, requestId, isSync })
+  // 云端内部 fire-and-forget 触发 runJob，前端无需再单独调用
+  cloud.callFunction({
+    name: 'difyChat',
+    data: { action: 'runJob', jobId },
+    timeout: 65000,
+  }).catch((e) => {
+    console.warn('[startChatJob] 内部触发 runJob 失败 (non-fatal):', e && e.message ? e.message : e)
+  })
+
+  console.log('[startChatJob] 任务创建成功，已内部触发 runJob:', { jobId, cardId, requestId, isSync })
   return { code: 0, message: 'ok', data: { jobId } }
 }
 
@@ -741,45 +750,22 @@ async function upsertConversation(openId, characterId, userText, aiText, request
   if (!characterId) return
 
   const now = Date.now()
-  const userMsgId = requestId ? `user_${requestId}` : `user_${now}`
-  const aiMsgId = requestId ? `ai_${requestId}` : `ai_${now + 1}`
-
-  const record = await ensureConversationRecord(openId, characterId)
-  if (!record || !record._id) return
-
-  const messages = Array.isArray(record.messages) ? record.messages : []
-
-  // 检查是否已存在相同 requestId 的消息，避免重复写入
-  const hasExistingUserMsg = messages.some((msg) => msg && msg.id === userMsgId)
-  const hasExistingAiMsg = messages.some((msg) => msg && msg.id === aiMsgId)
-  if (hasExistingUserMsg || hasExistingAiMsg) {
-    console.log('[upsertConversation] Skipping duplicate messages', { requestId, hasExistingUserMsg, hasExistingAiMsg })
-    return
-  }
-
-  // 计算sequence，确保消息顺序正确
-  const maxSequence = messages.reduce((max, msg) => Math.max(max, msg.sequence || 0), 0)
-  const userSequence = maxSequence + 1
-  const aiSequence = maxSequence + 2
-
   const userMsg = {
-    id: userMsgId,
+    id: requestId ? `user_${requestId}` : `user_${now}`,
     role: 'user',
     content: userText || '',
     timestamp: now,
     userId: openId,
     requestId: requestId || '',
-    sequence: userSequence,
   }
 
   const aiMsg = {
-    id: aiMsgId,
+    id: requestId ? `ai_${requestId}` : `ai_${now + 1}`,
     role: 'ai',
     content: aiText || '',
     timestamp: now + 1,
     userId: 'ai',
     requestId: requestId || '',
-    sequence: aiSequence,
   }
 
   // 如果前端传入 files（可能为 cloud fileID 列表或包含 url 的对象），把它们保存到 user 消息中
@@ -799,6 +785,9 @@ async function upsertConversation(openId, characterId, userText, aiText, request
     // ignore
   }
 
+  const record = await ensureConversationRecord(openId, characterId)
+  if (!record || !record._id) return
+  const messages = Array.isArray(record.messages) ? record.messages : []
   if (!messages.some((msg) => msg && msg.id === 'welcome')) {
     await db.collection('conversations').doc(record._id).update({
       data: {

@@ -1,3 +1,3 @@
 module.exports = {
-  REGISTER_BONUS: 120,
+  REGISTER_BONUS: 3000,
 };

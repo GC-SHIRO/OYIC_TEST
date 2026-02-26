@@ -4,7 +4,6 @@
  * API 密钥安全存放在云端，前端不暴露任何密钥
  */
 
-import { compareVersion } from '../miniprogram_npm/tdesign-miniprogram/common/version';
 import type { ICharacterInfo } from '../types/character';
 
 // ========== 类型定义 ==========
@@ -48,93 +47,34 @@ export async function chatWithDify(
   requestId?: string,
   images?: string[], // 新增参数，图片 fileID 列表
 ): Promise<IAgentResponse> {
-  // ===== 异步任务 + 轮询模式（解决云函数 60 秒超时问题）=====
-  // 1. startChat: 快速创建任务（< 1 秒），立即返回 jobId
-  // 2. runJob:    fire-and-forget 触发实际 Dify 调用（独享 60 秒）
-  // 3. pollChat:  每 2 秒轮询结果，直到完成或超时
   try {
-    // Step 1: 创建任务
-    const startRes = await (wx.cloud.callFunction as any)({
+    const res = await (wx.cloud.callFunction as any)({
       name: 'difyChat',
       data: {
-        action: 'startChat',
+        action: 'chat',
         query,
         conversationId: conversationId || '',
         cardId: cardId || '',
         requestId: requestId || '',
         files: images && images.length > 0 ? images : undefined,
       },
-      timeout: 15000,
+      timeout: 60000,
     });
 
-    const startResult = startRes.result as any;
-    if (startResult.code === 1) {
-      // 去重：任务已在处理中
-      return { success: false, message: startResult.message || '请求处理中，请勿重复提交' };
+    const result = res.result as any;
+    if (result.code === 1) {
+      return { success: false, message: result.message || '请求处理中，请勿重复提交' };
     }
-    if (!startResult.data?.jobId) {
-      console.error('startChat 返回无效:', startResult);
-      return { success: false, message: startResult.message || '创建任务失败', error: startResult.error };
+    if (result.code !== 0) {
+      return { success: false, message: result.message || '调用失败', error: result.error };
     }
 
-    const jobId: string = startResult.data.jobId;
-    console.log('chatWithDify: job created', jobId);
-
-    // Step 2: fire-and-forget 触发 runJob（不 await，云函数在服务端独立运行）
-    (wx.cloud.callFunction as any)({
-      name: 'difyChat',
-      data: { action: 'runJob', jobId },
-      timeout: 65000,
-    }).catch((e: any) => {
-      console.warn('runJob fire-and-forget error (non-fatal):', e?.message || e);
-    });
-
-    // Step 3: 轮询，最多等待 150 秒（75 次 × 2 秒）
-    const MAX_POLLS = 75;
-    const POLL_INTERVAL_MS = 2000;
-
-    for (let i = 0; i < MAX_POLLS; i++) {
-      await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-
-      let pollResult: any;
-      try {
-        const pollRes = await (wx.cloud.callFunction as any)({
-          name: 'difyChat',
-          data: { action: 'pollChat', jobId },
-          timeout: 10000,
-        });
-        pollResult = (pollRes.result as any)?.data;
-      } catch (e: any) {
-        console.warn('pollChat 请求异常，继续重试:', e?.message || e);
-        continue;
-      }
-
-      if (!pollResult) continue;
-
-      const status: string = pollResult.status;
-      console.log(`chatWithDify poll[${i + 1}/${MAX_POLLS}]: status=${status}`);
-
-      if (status === 'done') {
-        return {
-          success: true,
-          message: pollResult.answer || '',
-          conversationId: pollResult.conversationId || '',
-          data: pollResult,
-        };
-      } else if (status === 'failed') {
-        return {
-          success: false,
-          message: pollResult.error || 'AI处理失败，请重试',
-          error: pollResult.error,
-        };
-      }
-      // pending / running → 继续等待
-    }
-
+    const data = result.data;
     return {
-      success: false,
-      message: 'AI响应超时，请稍后重试',
-      error: 'poll_timeout',
+      success: true,
+      message: data.answer || '',
+      conversationId: data.conversationId || '',
+      data,
     };
   } catch (error: any) {
     console.error('chatWithDify 异常:', error);
@@ -251,107 +191,12 @@ function convertPythonToJson(text: string): string {
   // 匹配: '字符串内容' 其中内容不包含未转义的单引号
   result = result.replace(
     /'([^'\\]*(?:\\.[^'\\]*)*)'/g, 
-    (match, content) => {
+    (_match, content) => {
       // 将内容中的双引号转义
       const escaped = content.replace(/"/g, '\\"');
       return `"${escaped}"`;
     }
   );
-
-  return result;
-}
-
-/**
- * 安全尝试 JSON.parse
- */
-function tryParseJSON(str: string): any | null {
-  try {
-    return JSON.parse(str);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * 将 Python 风格的单引号字典转换为合法 JSON
- * 处理: 'key': 'value' → "key": "value"
- * 同时处理值内部包含的撇号（如 it's）
- */
-function fixPythonQuotes(text: string): string {
-  let result = '';
-  let i = 0;
-  let inString = false;
-  let stringChar = '';
-
-  while (i < text.length) {
-    const ch = text[i];
-
-    if (!inString) {
-      if (ch === "'") {
-        // 单引号开始字符串，替换为双引号
-        result += '"';
-        inString = true;
-        stringChar = "'";
-        i++;
-        continue;
-      } else if (ch === '"') {
-        result += '"';
-        inString = true;
-        stringChar = '"';
-        i++;
-        continue;
-      }
-      result += ch;
-      i++;
-    } else {
-      if (ch === '\\') {
-        // 转义字符，保留下一个字符
-        result += ch;
-        i++;
-        if (i < text.length) {
-          result += text[i];
-          i++;
-        }
-        continue;
-      }
-
-      if (stringChar === "'" && ch === "'") {
-        // 检查这个单引号是否是字符串结束符
-        // 结束符后面通常跟: , ] } 或空白/换行
-        const after = text.substring(i + 1).trimStart();
-        const nextChar = after[0];
-        if (!nextChar || ':,]}'.indexOf(nextChar) !== -1) {
-          // 是结束引号
-          result += '"';
-          inString = false;
-          i++;
-          continue;
-        } else {
-          // 值内部的撇号（如 it's），转义
-          result += "\\'";
-          i++;
-          continue;
-        }
-      }
-
-      if (stringChar === '"' && ch === '"') {
-        result += '"';
-        inString = false;
-        i++;
-        continue;
-      }
-
-      // 在单引号字符串内的双引号需要转义
-      if (stringChar === "'" && ch === '"') {
-        result += '\\"';
-        i++;
-        continue;
-      }
-
-      result += ch;
-      i++;
-    }
-  }
 
   return result;
 }
