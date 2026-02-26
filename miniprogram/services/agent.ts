@@ -40,7 +40,9 @@ export async function chatWithDify(
   requestId?: string,
   images?: string[], // 新增参数，图片 fileID 列表
 ): Promise<IAgentResponse> {
+  const startTime = Date.now();
   try {
+    console.log('[Dify Request] 上下文长度:', query.length, '字符');
     const res = await (wx.cloud.callFunction as any)({
       name: 'difyChat',
       data: {
@@ -53,8 +55,12 @@ export async function chatWithDify(
       },
       timeout: 60000,
     });
-
+    const duration = Date.now() - startTime;
     const result = res.result as any;
+    if (result.code === 0 && result.data) {
+      console.log('[Chat Stats] tokens:', result.data.tokens, '| 创作点:', result.data.cost, '| 时长:', duration + 'ms');
+    }
+
     if (result.code === 1) {
       return { success: false, message: result.message || '请求处理中，请勿重复提交' };
     }
