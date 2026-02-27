@@ -37,8 +37,6 @@ const DIFY_API_KEY = 'app-AgVIxZ1CKsps5s5JaiJWs14x'
 const DIFY_BASE_URL = 'https://api.dify.ai/v1'
 const CHAT_PROVIDER = 'dify'
 
-const WELCOME_CONTENT = '你好！我是你的角色创作助手\n\n告诉我你的想法吧！可以是角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~'
-
 exports.main = async (event, context) => {
   if (moduleInitError) {
     console.error('[main] 模块初始化失败，直接返回错误:', moduleInitError)
@@ -417,15 +415,6 @@ async function upsertConversation(openId, characterId, userText, aiText, request
 
   const record = await ensureConversationRecord(openId, characterId)
   if (!record || !record._id) return
-  const messages = Array.isArray(record.messages) ? record.messages : []
-  if (!messages.some((msg) => msg && msg.id === 'welcome')) {
-    await db.collection('conversations').doc(record._id).update({
-      data: {
-        messages: [buildWelcomeMessage(), ...messages],
-        updatedAt: db.serverDate(),
-      }
-    })
-  }
 
   try {
     console.log('upsertConversation -> pushing messages', { userMsgPreview: { id: userMsg.id, content: (userMsg.content||'').slice(0,200), imagesCount: Array.isArray(userMsg.images)?userMsg.images.length:0 }, aiMsgPreview: { id: aiMsg.id, content: (aiMsg.content||'').slice(0,200) } })
@@ -473,7 +462,7 @@ async function ensureConversationRecord(openId, characterId) {
     data: {
       _openid: openId,
       characterId,
-      messages: [buildWelcomeMessage()],
+      messages: [],
       requestState: {
         processingIds: [],
         completedIds: [],
@@ -488,7 +477,7 @@ async function ensureConversationRecord(openId, characterId) {
     _id: addRes._id,
     _openid: openId,
     characterId,
-    messages: [buildWelcomeMessage()],
+    messages: [],
     requestState: {
       processingIds: [],
       completedIds: [],
@@ -571,16 +560,6 @@ function trimIdList(list, limit) {
 function normalizeRequestId(raw) {
   if (!raw) return ''
   return String(raw).trim().slice(0, 64)
-}
-
-function buildWelcomeMessage() {
-  return {
-    id: 'welcome',
-    role: 'ai',
-    content: WELCOME_CONTENT,
-    timestamp: Date.now(),
-    userId: 'ai',
-  }
 }
 
 /**

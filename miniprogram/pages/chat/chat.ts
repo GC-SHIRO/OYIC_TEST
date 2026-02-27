@@ -14,7 +14,7 @@ import { getLocalUserInfo } from '../../services/user';
 import { chatWithDify, generateCharacterCard } from '../../services/agent';
 import { uploadImagesToCloud, compressImage } from '../../services/image';
 
-const WELCOME_CONTENT = '你好！我是你的角色创作助手\n\n告诉我你的想法吧！可以是角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~';
+const WELCOME_CONTENT = '你好！我是Aki，你的专属角色创作助手！\n\n告诉我你的想法吧😄！你可以告诉我角色的外貌、性格、背景故事，或者任何零散的灵感。\n\n你也可以上传参考图片~';
 const DIFY_ERROR_TEXT = 'AI服务出现错误，请联系管理员处理';
 const DIFY_TIMEOUT_TEXT = '请求超时，AI服务响应时间过长，请稍后重试~';
 
