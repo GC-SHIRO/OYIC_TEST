@@ -52,6 +52,12 @@ Page({
     userAvatar: '',
     pendingImage: null as { path: string, fileID?: string, compressedPath?: string } | null,
     inputContainerHeight: 0,
+    // 长按消息操作菜单相关
+    selectedMessageId: null as string | null,
+    selectedMessageRole: null as 'user' | 'ai' | null,
+    selectedMessageContent: '',
+    showActionMenu: false,
+    actionMenuPosition: { top: 0, left: 0 },
   },
   onReady() {
     this.getInputContainerHeight();
@@ -816,6 +822,85 @@ Page({
     this.finishTypewriter();
     this.saveConversation();
     this.requestGiveResultOnExit();
+  },
+
+  // ==================== 长按消息操作菜单 ====================
+
+  /**
+   * 长按消息事件
+   */
+  onMessageLongPress(e: WechatMiniprogram.BaseEvent) {
+    const { messageId, role, content } = e.currentTarget.dataset;
+
+    // 获取消息元素位置
+    const query = wx.createSelectorQuery().in(this);
+    query.select(`#msg-${messageId}`).boundingClientRect((rect) => {
+      if (rect) {
+        this.setData({
+          selectedMessageId: messageId,
+          selectedMessageRole: role,
+          selectedMessageContent: content || '',
+          showActionMenu: true,
+          actionMenuPosition: {
+            top: rect.bottom + 10, // 消息底部下方 10px
+            left: rect.left + rect.width / 2, // 消息水平居中
+          },
+        });
+      }
+    }).exec();
+  },
+
+  /**
+   * 取消选中
+   */
+  onCancelSelect() {
+    this.setData({
+      selectedMessageId: null,
+      selectedMessageRole: null,
+      selectedMessageContent: '',
+      showActionMenu: false,
+    });
+  },
+
+  /**
+   * 复制消息
+   */
+  onCopyMessage() {
+    const { selectedMessageContent } = this.data;
+    if (selectedMessageContent) {
+      wx.setClipboardData({
+        data: selectedMessageContent,
+        success: () => {
+          wx.showToast({
+            title: '已复制',
+            icon: 'success',
+            duration: 1500,
+          });
+        },
+      });
+    }
+    this.onCancelSelect();
+  },
+
+  /**
+   * 重新发送消息
+   */
+  onResendMessage() {
+    const { selectedMessageContent } = this.data;
+    if (selectedMessageContent) {
+      this.setData({
+        inputValue: selectedMessageContent,
+      }, () => {
+        // 聚焦输入框并唤起键盘
+        const query = wx.createSelectorQuery().in(this);
+        query.select('.chat-input').node((res) => {
+          if (res && res.node) {
+            res.node.focus();
+          }
+        }).exec();
+      });
+    }
+    this.onCancelSelect();
   },
 
   async requestGiveResultOnExit() {

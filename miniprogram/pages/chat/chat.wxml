@@ -23,7 +23,11 @@
         wx:for="{{messages}}" 
         wx:key="id" 
         id="msg-{{item.id}}"
-        class="message {{item.role === 'ai' ? 'message-ai' : 'message-user'}} {{item.animate ? 'message-animate' : ''}}"
+        class="message {{item.role === 'ai' ? 'message-ai' : 'message-user'}} {{item.animate ? 'message-animate' : ''}} {{selectedMessageId === item.id ? 'message-selected' : ''}}"
+        bindlongpress="onMessageLongPress"
+        data-message-id="{{item.id}}"
+        data-role="{{item.role}}"
+        data-content="{{item.content}}"
       >
         <view class="message-avatar">
           <t-avatar 
@@ -141,4 +145,32 @@
     id="compressCanvas" 
     style="position:absolute;top:-9999px;left:-9999px;width:300px;height:300px;"
   />
+
+  <!-- 遮罩层 - 点击取消选中 -->
+  <view 
+    class="action-mask"
+    wx:if="{{showActionMenu}}"
+    bindtap="onCancelSelect"
+  ></view>
+
+  <!-- 操作菜单悬浮层 -->
+  <view 
+    class="action-menu"
+    wx:if="{{showActionMenu}}"
+    style="top: {{actionMenuPosition.top}}px; left: {{actionMenuPosition.left}}px;"
+  >
+    <!-- 复制按钮 - 用户和AI消息都显示 -->
+    <view class="menu-btn" bindtap="onCopyMessage">
+      <t-icon name="copy" size="40rpx" color="#374151" />
+    </view>
+    
+    <!-- 重新发送按钮 - 仅用户消息显示 -->
+    <view 
+      class="menu-btn" 
+      bindtap="onResendMessage"
+      wx:if="{{selectedMessageRole === 'user'}}"
+    >
+      <t-icon name="refresh" size="40rpx" color="#374151" />
+    </view>
+  </view>
 </view>

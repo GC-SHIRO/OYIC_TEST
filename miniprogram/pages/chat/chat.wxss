@@ -453,3 +453,69 @@ page {
   font-size: 24rpx;
   font-weight: 500;
 }
+
+/* ==================== 长按消息操作菜单样式 ==================== */
+
+/* 消息选中状态 - 气泡缩小动画 */
+.message-selected .message-bubble {
+  transform: scale(0.95);
+  transition: transform 0.2s ease;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.12);
+}
+
+/* 遮罩层 */
+.action-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 150;
+  background: transparent;
+}
+
+/* 操作菜单容器 */
+.action-menu {
+  position: fixed;
+  z-index: 200;
+  display: flex;
+  gap: 32rpx;
+  padding: 16rpx 24rpx;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 48rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10rpx);
+  transform: translateX(-50%);
+  animation: menuPop 0.2s ease;
+}
+
+@keyframes menuPop {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10rpx) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+/* 菜单按钮 */
+.menu-btn {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+  transition: all 0.15s ease;
+  backdrop-filter: blur(4rpx);
+  border: 1rpx solid rgba(255, 255, 255, 0.8);
+}
+
+.menu-btn:active {
+  transform: scale(0.9);
+  background: rgba(255, 255, 255, 0.2);
+}
