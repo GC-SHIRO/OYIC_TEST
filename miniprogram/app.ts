@@ -21,7 +21,7 @@ App<IAppOption>({
       console.error('请使用 2.2.3 或以上的基础库以使用云能力');
     } else {
       wx.cloud.init({
-        env: 'cloud1-0g88vkjh890eca50',
+        env: 'cloud1-3g4mpqc0fee87d78',
         traceUser: true,
       });
     }
