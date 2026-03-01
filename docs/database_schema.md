@@ -19,6 +19,7 @@
 - characters: 角色卡主数据
 - usage_logs: 创作点账单流水
 - conversations: 对话历史记录
+- redemption_codes: 兑换码管理
 
 ---
 
@@ -90,7 +91,7 @@
 ```json
 {
   "_openid": "string",
-  "type": "chat|card|recharge|share|register",
+  "type": "chat|card|recharge|share|register|redeem",
   "delta": -30,
   "balanceBefore": 100,
   "balanceAfter": 70,
@@ -145,6 +146,48 @@
 
 **索引建议**:
 - `_openid + characterId` 唯一查询
+
+---
+
+## redemption_codes
+
+**用途**: 兑换码管理，支持多类型奖励与多维度限制规则。
+
+**推荐结构**:
+```json
+{
+  "code": "string",
+  "rewardType": "points|cardTemplate|vip",
+  "rewardValue": "number|string",
+  "maxUses": -1,
+  "usedCount": 0,
+  "usedByCount": { "openId_xxx": 2 },
+  "perUserLimit": 1,
+  "dailyLimit": -1,
+  "dailyUsed": 0,
+  "dailyResetDate": "YYYY-MM-DD",
+  "targetUsers": ["openId"],
+  "newUserOnly": false,
+  "expiresAt": "date|null",
+  "status": "active|disabled",
+  "batchId": "string",
+  "description": "string",
+  "createdAt": "serverDate"
+}
+```
+
+**字段说明**:
+- `maxUses / dailyLimit`：`-1` 表示不限制
+- `usedByCount`：对象 Map，记录每位用户已兑换次数，格式 `{ openId: count }`，结合 `perUserLimit` 实现多次兑换控制
+- `perUserLimit`：每人最多可兑换次数，`1` = 一次性（默认），`-1` = 不限，`N` = 最多 N 次
+- `dailyResetDate`：当日日期字符串，与 `dailyUsed` 配合实现每日重置
+- `targetUsers`：为空数组则全用户可用；有值则仅限指定用户
+- `newUserOnly`：新用户判定为注册 7 天内
+
+**索引建议**:
+- `code`（唯一索引）
+- `batchId`
+- `status`
 
 ---
 

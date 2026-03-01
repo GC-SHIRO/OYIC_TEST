@@ -36,6 +36,11 @@ Page({
     // 作品列表
     works: [] as IWork[],
     version: '1.0.0',
+
+    // 兑换码弹窗
+    redeemPopupVisible: false,
+    redeemCode: '',
+    redeemLoading: false,
   },
 
   onLoad() {
@@ -518,5 +523,88 @@ Page({
       content: 'O亿C是基于AI Agent的原创角色创作灵感助手，帮助ACGN爱好者快速构建专业的角色信息卡。\n\n版本：1.0.0',
       showCancel: false,
     });
+  },
+
+  // ========== 兑换码 ==========
+
+  onRedeemTap() {
+    if (!this.data.isLoggedIn) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    this.setData({ redeemPopupVisible: true, redeemCode: '' });
+  },
+
+  onRedeemCodeInput(e: WechatMiniprogram.Input) {
+    this.setData({ redeemCode: e.detail.value });
+  },
+
+  async onRedeemSubmit() {
+    const code = (this.data.redeemCode || '').trim();
+    if (!code) {
+      wx.showToast({ title: '请输入兑换码', icon: 'none' });
+      return;
+    }
+
+    this.setData({ redeemLoading: true });
+    console.log('[Redeem] 开始兑换，输入码：', code);
+
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'redeem',
+        data: { action: 'redeem', code },
+      });
+
+      const result = res.result as any;
+      console.log('[Redeem] 云函数返回：', JSON.stringify(result));
+
+      if (result.code === 0) {
+        const { rewardType, rewardValue, description } = result.data || {};
+
+        // 构建奖励说明文案
+        let rewardText = '';
+        if (rewardType === 'points') {
+          rewardText = `+${rewardValue} 创作点已到账`;
+        } else if (rewardType === 'vip') {
+          rewardText = `已获得 ${rewardValue} 天 VIP`;
+        } else if (rewardType === 'cardTemplate') {
+          rewardText = '角色卡模板已添加至我的作品';
+        } else {
+          rewardText = description || '奖励已发放';
+        }
+
+        const modalContent = description
+          ? `${rewardText}\n\n${description}`
+          : rewardText;
+
+        console.log('[Redeem] 兑换成功 →', { rewardType, rewardValue, description, rewardText });
+
+        this.setData({ redeemLoading: false, redeemPopupVisible: false, redeemCode: '' });
+
+        // 使用 showModal 展示完整兑换结果，避免 showToast 7字限制导致截断
+        wx.showModal({
+          title: '🎉 兑换成功',
+          content: modalContent,
+          showCancel: false,
+          confirmText: '好的',
+        });
+
+        // 刷新余额
+        this.loadBalanceOverview();
+      } else {
+        const errMsg = result.message || '兑换失败，请稍后重试';
+        console.warn('[Redeem] 兑换失败：', errMsg, '| 完整返回：', JSON.stringify(result));
+        this.setData({ redeemLoading: false });
+        wx.showToast({ title: errMsg, icon: 'none', duration: 2500 });
+      }
+    } catch (err: any) {
+      console.error('[Redeem] 云函数调用异常：', err?.message || err);
+      this.setData({ redeemLoading: false });
+      wx.showToast({ title: '网络异常，请重试', icon: 'none' });
+    }
+  },
+
+  onRedeemPopupClose() {
+    this.setData({ redeemPopupVisible: false, redeemCode: '', redeemLoading: false });
   },
 });
