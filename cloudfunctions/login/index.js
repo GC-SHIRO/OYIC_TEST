@@ -3,7 +3,7 @@ const cloud = require('wx-server-sdk')
 const billingConfig = require('./billingConfig')
 
 cloud.init({
-  env: 'cloud1-0g88vkjh890eca50'
+  env: 'cloud1-3g4mpqc0fee87d78'
 })
 
 const db = cloud.database()

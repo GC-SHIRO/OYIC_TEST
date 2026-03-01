@@ -21,7 +21,7 @@ try {
   })
 
   cloud.init({
-    env: 'cloud1-0g88vkjh890eca50'
+    env: 'cloud1-3g4mpqc0fee87d78'
   })
 
   db = cloud.database()
