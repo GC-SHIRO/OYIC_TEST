@@ -1,4 +1,4 @@
-type UsageType = 'all' | 'chat' | 'card' | 'recharge' | 'share';
+type UsageType = 'all' | 'chat' | 'card' | 'recharge' | 'share' | 'redeem';
 
 interface UsageRecord {
   id: string;
@@ -26,6 +26,7 @@ Page({
       { label: '角色卡生成', value: 'card' },
       { label: '充值入账', value: 'recharge' },
       { label: '分享奖励', value: 'share' },
+      { label: '兑换奖励', value: 'redeem' },
     ] as Array<{ label: string; value: UsageType }>,
     activeFilter: 'all' as UsageType,
     records: [] as UsageRecord[],
@@ -102,6 +103,7 @@ Page({
       recharge: '充值入账',
       share: '分享奖励',
       register: '注册奖励',
+      redeem: '兑换码奖励',
     };
 
     const metaMap: Record<string, string> = {
@@ -109,6 +111,7 @@ Page({
       recharge: '微信支付',
       share: '群聊分享',
       register: '注册奖励',
+      redeem: '兑换码',
     };
 
     const extra = log.type === 'chat' && log.chars

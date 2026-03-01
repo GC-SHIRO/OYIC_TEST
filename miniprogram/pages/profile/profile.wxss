@@ -549,6 +549,22 @@
   border: none;
 }
 
+/* === 兑换码菜单图标 === */
+.redeem-icon {
+  background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%) !important;
+}
+
+/* === 兑换码弹窗 === */
+.redeem-popup .register-subtitle {
+  margin-bottom: 32rpx;
+}
+
+.redeem-input {
+  letter-spacing: 2rpx;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 .register-confirm-btn:active {
   opacity: 0.88;
 }

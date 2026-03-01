@@ -126,6 +126,18 @@
         <t-icon name="chevron-right" size="40rpx" color="#ccc" />
       </view>
       
+      <!-- 兑换码 -->
+      <view class="menu-item" bindtap="onRedeemTap">
+        <view class="menu-icon redeem-icon">
+          <t-icon name="gift" size="40rpx" color="#fff" />
+        </view>
+        <view class="menu-content">
+          <view class="menu-title">兑换码</view>
+          <view class="menu-subtitle">输入兑换码领取奖励</view>
+        </view>
+        <t-icon name="chevron-right" size="40rpx" color="#ccc" />
+      </view>
+
       <!-- 关于我们 -->
       <view class="menu-item" bindtap="onMenuTap" data-type="about">
         <view class="menu-icon">
@@ -206,6 +218,37 @@
     <view class="register-actions">
       <button class="register-cancel-btn" bindtap="onRegisterCancel">跳过</button>
       <button class="register-confirm-btn" bindtap="onRegisterConfirm" loading="{{isLoading}}">确认</button>
+    </view>
+  </view>
+</t-popup>
+
+<!-- 兑换码弹窗 -->
+<t-popup
+  visible="{{redeemPopupVisible}}"
+  placement="bottom"
+  bind:visible-change="onRedeemPopupClose"
+>
+  <view class="register-popup redeem-popup">
+    <view class="register-title">兑换码</view>
+    <view class="register-subtitle">输入兑换码，立即领取专属奖励</view>
+
+    <!-- 兑换码输入 -->
+    <view class="register-nickname-section">
+      <input
+        class="nickname-input redeem-input"
+        placeholder="请输入兑换码（不区分大小写）"
+        value="{{redeemCode}}"
+        bindinput="onRedeemCodeInput"
+        maxlength="20"
+        confirm-type="done"
+        bindconfirm="onRedeemSubmit"
+      />
+    </view>
+
+    <!-- 操作按钮 -->
+    <view class="register-actions">
+      <button class="register-cancel-btn" bindtap="onRedeemPopupClose">取消</button>
+      <button class="register-confirm-btn" bindtap="onRedeemSubmit" loading="{{redeemLoading}}">立即兑换</button>
     </view>
   </view>
 </t-popup>
